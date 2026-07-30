@@ -54,11 +54,14 @@ Instant-win specials (four 2s, dragon, etc.) are **not** enabled in v1.
 
 ## Deploy to Vercel
 
-1. Push this repo to GitHub (public `tienlen`).
-2. [Import](https://vercel.com/new) the repo on Vercel.
-3. Add env vars `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN`  
+Repo: [github.com/satorimaru/tienlen](https://github.com/satorimaru/tienlen)
+
+1. [Import](https://vercel.com/new) the repo on Vercel (Framework: Next.js).
+2. Add env vars `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN`  
    (or use **Vercel Marketplace → Upstash** integration).
-4. Deploy.
+3. Deploy.
+
+Without Upstash env vars on Vercel, multiplayer rooms will not persist across serverless instances — set Redis for production.
 
 ## Project layout
 
