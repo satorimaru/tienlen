@@ -1,8 +1,11 @@
 "use client";
 
 import { useState } from "react";
+import { parseRules, type GameRules } from "@/lib/rules";
 import type { RoomView } from "@/lib/rooms/types";
+import { useApp } from "./AppProviders";
 import { ChatButton } from "./ChatSheet";
+import { ModePicker } from "./ModePicker";
 
 interface LobbyProps {
   room: RoomView;
@@ -15,6 +18,7 @@ interface LobbyProps {
   unread?: number;
   busy?: boolean;
   error?: string | null;
+  onChangeRules?: (rules: GameRules) => void;
 }
 
 export function Lobby({
@@ -28,8 +32,11 @@ export function Lobby({
   unread = 0,
   busy,
   error,
+  onChangeRules,
 }: LobbyProps) {
+  const { t, te } = useApp();
   const [copied, setCopied] = useState(false);
+  const rules = parseRules(room.rules);
   const me = room.players.find((p) => p.id === playerId);
   const isHost = room.hostId === playerId;
   const allReady =
@@ -53,13 +60,16 @@ export function Lobby({
       <div className="mb-5 flex items-start justify-between gap-3">
         <div>
           <p className="text-[11px] uppercase tracking-[0.18em] text-[var(--gold-dim)]">
-            Waiting
+            {t("lobby.waiting")}
           </p>
           <h1 className="mt-1 font-mono text-[2rem] tracking-[0.18em] text-[var(--ivory)]">
             {room.id}
           </h1>
           <p className="mt-1 text-sm text-[var(--mute)]">
-            {room.players.length}/{room.maxPlayers} seated
+            {t("lobby.seatedCount", {
+              n: room.players.length,
+              max: room.maxPlayers,
+            })}
           </p>
         </div>
         <ChatButton
@@ -80,7 +90,7 @@ export function Lobby({
           onClick={() => void copy()}
           className="btn-ghost min-w-20 px-4 text-sm"
         >
-          {copied ? "Copied" : "Copy"}
+          {copied ? t("lobby.copied") : t("lobby.copy")}
         </button>
       </div>
 
@@ -96,16 +106,16 @@ export function Lobby({
               </span>
               <div>
                 <p className="text-sm font-medium text-[var(--ivory)]">
-                  {p ? p.name : "Open seat"}
+                  {p ? p.name : t("lobby.openSeat")}
                 </p>
                 <p className="text-[11px] text-[var(--mute)]">
                   {p?.id === room.hostId
-                    ? "Host"
+                    ? t("lobby.host")
                     : p?.id === playerId
-                      ? "You"
+                      ? t("lobby.you")
                       : p
-                        ? "Seated"
-                        : "Waiting"}
+                        ? t("lobby.seated")
+                        : t("lobby.waitingSeat")}
                 </p>
               </div>
             </div>
@@ -117,16 +127,64 @@ export function Lobby({
                     : "text-xs text-[var(--mute)]"
                 }
               >
-                {p.ready ? "Ready" : "Not ready"}
+                {p.ready ? t("lobby.ready") : t("lobby.notReady")}
               </span>
             ) : null}
           </li>
         ))}
       </ul>
 
+      <div className="mb-5">
+        <p className="mb-2 text-[11px] uppercase tracking-[0.16em] text-[var(--gold-dim)]">
+          {t("settings.modes")}
+        </p>
+        <ModePicker
+          rules={rules}
+          disabled={!isHost || busy || !onChangeRules}
+          onChange={(next) => onChangeRules?.(next)}
+        />
+      </div>
+
+      <div className="mb-5 space-y-2">
+        {room.maxPlayers === 3 && (
+          <button
+            type="button"
+            disabled={!isHost || busy || !onChangeRules}
+            onClick={() =>
+              onChangeRules?.({
+                ...rules,
+                threePlayerSeventeen: !rules.threePlayerSeventeen,
+              })
+            }
+            className="flex w-full items-center justify-between rounded-2xl bg-black/25 px-3 py-2.5 text-left text-sm disabled:opacity-70"
+          >
+            <span className="text-[var(--ivory)]">{t("settings.seventeen")}</span>
+            <span className="text-xs text-[var(--gold)]">
+              {rules.threePlayerSeventeen ? "17" : "13"}
+            </span>
+          </button>
+        )}
+        <button
+          type="button"
+          disabled={!isHost || busy || !onChangeRules}
+          onClick={() =>
+            onChangeRules?.({
+              ...rules,
+              noFinishOnTwo: !rules.noFinishOnTwo,
+            })
+          }
+          className="flex w-full items-center justify-between rounded-2xl bg-black/25 px-3 py-2.5 text-left text-sm disabled:opacity-70"
+        >
+          <span className="text-[var(--ivory)]">{t("settings.noTwo")}</span>
+          <span className="text-xs text-[var(--gold)]">
+            {rules.noFinishOnTwo ? t("settings.on") : t("settings.off")}
+          </span>
+        </button>
+      </div>
+
       {error && (
         <p className="mb-4 rounded-xl bg-[rgba(196,30,58,0.12)] px-3 py-2 text-sm text-[#f0b4bd]">
-          {error}
+          {te(error)}
         </p>
       )}
 
@@ -138,7 +196,7 @@ export function Lobby({
             onClick={() => onReady(!me.ready)}
             className={me.ready ? "btn-ghost w-full" : "btn-gold w-full"}
           >
-            {me.ready ? "Hold on" : "Ready"}
+            {me.ready ? t("lobby.hold") : t("lobby.ready")}
           </button>
         )}
         {isHost && (
@@ -148,14 +206,14 @@ export function Lobby({
             onClick={onStart}
             className="btn-ghost w-full"
           >
-            Deal
+            {t("lobby.deal")}
           </button>
         )}
       </div>
 
       {isHost && !allReady && (
         <p className="mt-3 text-center text-xs text-[var(--mute)]">
-          Everyone must ready before the deal
+          {t("lobby.needReady")}
         </p>
       )}
 
@@ -165,7 +223,7 @@ export function Lobby({
         onClick={onLeave}
         className="mt-4 w-full text-center text-xs text-[var(--mute)]"
       >
-        Leave table
+        {t("lobby.leave")}
       </button>
     </div>
   );

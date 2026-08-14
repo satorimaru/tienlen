@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { MAX_CHAT_TEXT, type ChatMessage } from "@/lib/rooms/types";
+import { useApp } from "./AppProviders";
 
 interface ChatSheetProps {
   open: boolean;
@@ -23,9 +24,10 @@ export function ChatButton({
   onClick,
   className,
 }: ChatButtonProps) {
+  const { t } = useApp();
   return (
     <button type="button" onClick={onClick} className={className}>
-      Chat
+      {t("nav.chat")}
       {unread > 0 && (
         <span className="ml-1.5 inline-flex min-w-5 items-center justify-center rounded-full bg-[var(--gold)] px-1.5 py-0.5 text-[10px] font-bold leading-none text-[#1a1408]">
           {unread > 9 ? "9+" : unread}
@@ -43,6 +45,7 @@ export function ChatSheet({
   onSend,
   busy,
 }: ChatSheetProps) {
+  const { t, te } = useApp();
   const [draft, setDraft] = useState("");
   const [error, setError] = useState<string | null>(null);
   const listRef = useRef<HTMLDivElement>(null);
@@ -81,7 +84,7 @@ export function ChatSheet({
       await onSend(text);
       setDraft("");
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not send");
+      setError(e instanceof Error ? te(e.message) : t("err.requestFailed"));
     }
   };
 
@@ -89,24 +92,24 @@ export function ChatSheet({
     <div className="fixed inset-0 z-40 flex flex-col justify-end">
       <button
         type="button"
-        aria-label="Close chat"
+        aria-label={t("chat.close")}
         className="absolute inset-0 bg-black/50"
         onClick={onClose}
       />
       <section
         role="dialog"
         aria-modal="true"
-        aria-label="Table chat"
+        aria-label={t("chat.title")}
         className="glass-panel relative z-10 flex max-h-[62dvh] flex-col rounded-t-3xl px-4 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))]"
       >
         <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-[rgba(244,234,216,0.18)]" />
         <div className="mb-3 flex items-center justify-between">
           <div>
             <p className="text-[11px] uppercase tracking-[0.18em] text-[var(--gold-dim)]">
-              Table chat
+              {t("chat.title")}
             </p>
             <h2 className="font-[family-name:var(--font-display)] text-xl text-[var(--ivory)]">
-              Room talk
+              {t("chat.heading")}
             </h2>
           </div>
           <button
@@ -114,7 +117,7 @@ export function ChatSheet({
             onClick={onClose}
             className="min-h-10 rounded-full px-3 text-sm text-[var(--mute)]"
           >
-            Close
+            {t("nav.close")}
           </button>
         </div>
 
@@ -124,10 +127,9 @@ export function ChatSheet({
         >
           {messages.length === 0 ? (
             <div className="flex flex-1 flex-col items-center justify-center px-4 text-center">
-              <p className="text-sm text-[var(--ivory)]">Quiet table</p>
+              <p className="text-sm text-[var(--ivory)]">{t("chat.quiet")}</p>
               <p className="mt-1 max-w-[16rem] text-xs leading-relaxed text-[var(--mute)]">
-                Say something. This tray sits over the felt so your cards stay
-                put.
+                {t("chat.quietHint")}
               </p>
             </div>
           ) : (
@@ -146,7 +148,7 @@ export function ChatSheet({
                         : "text-[var(--mute)]",
                     ].join(" ")}
                   >
-                    {mine ? "You" : m.name}
+                    {mine ? t("game.you") : m.name}
                   </p>
                   <p
                     className={[
@@ -180,7 +182,7 @@ export function ChatSheet({
             ref={inputRef}
             value={draft}
             maxLength={MAX_CHAT_TEXT}
-            placeholder="Message the table…"
+            placeholder={t("chat.placeholder")}
             enterKeyHint="send"
             autoComplete="off"
             className="field flex-1"
@@ -191,7 +193,7 @@ export function ChatSheet({
             disabled={!canSend}
             className="btn-gold px-4"
           >
-            Send
+            {t("chat.send")}
           </button>
         </form>
         {draft.length > 120 && (

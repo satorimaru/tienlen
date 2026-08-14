@@ -2,6 +2,10 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useApp } from "@/components/AppProviders";
+import { LangToggle } from "@/components/LangToggle";
+import { ModePicker } from "@/components/ModePicker";
+import { SettingsSheet } from "@/components/SettingsSheet";
 import { useClientMounted } from "@/lib/client";
 import { createRoomRequest, postRoom } from "@/lib/rooms/client";
 import {
@@ -13,13 +17,16 @@ import {
 export default function HomePage() {
   const router = useRouter();
   const mounted = useClientMounted();
+  const { t, te, rules, setRules } = useApp();
   const [nameDraft, setNameDraft] = useState<string | null>(null);
   const name = nameDraft ?? (mounted ? getPlayerName() : "");
   const [joinCode, setJoinCode] = useState("");
   const [maxPlayers, setMaxPlayers] = useState<2 | 3 | 4>(4);
+  const [bots, setBots] = useState<1 | 2 | 3>(2);
   const [creating, setCreating] = useState(false);
   const [joining, setJoining] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   const createRoom = async () => {
     setCreating(true);
@@ -30,10 +37,11 @@ export default function HomePage() {
         playerId: getOrCreatePlayerId(),
         playerName: name || "Host",
         maxPlayers,
+        rules,
       });
       router.push(`/game/${room.id}`);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to create room");
+      setError(e instanceof Error ? te(e.message) : t("err.createFailed"));
       setCreating(false);
     }
   };
@@ -41,7 +49,7 @@ export default function HomePage() {
   const joinRoom = async () => {
     const code = joinCode.trim().toUpperCase();
     if (!code) {
-      setError("Enter a room code");
+      setError(t("home.enterCode"));
       return;
     }
     setJoining(true);
@@ -53,48 +61,117 @@ export default function HomePage() {
         playerId: getOrCreatePlayerId(),
         playerName: name || "Guest",
       });
-      if (!room) throw new Error("Failed to join");
+      if (!room) throw new Error(t("err.joinFailed"));
       router.push(`/game/${room.id}`);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to join");
+      setError(e instanceof Error ? te(e.message) : t("err.joinFailed"));
       setJoining(false);
     }
   };
 
   return (
     <main className="mx-auto flex w-full max-w-md flex-1 flex-col justify-end px-4 pt-[max(2rem,env(safe-area-inset-top))] pb-[max(1.25rem,env(safe-area-inset-bottom))] sm:justify-center">
+      <div className="mb-4 flex items-center justify-between">
+        <LangToggle />
+        <button
+          type="button"
+          onClick={() => setSettingsOpen(true)}
+          className="min-h-9 text-xs text-[var(--gold)]"
+        >
+          {t("nav.settings")}
+        </button>
+      </div>
+
       <header className="mb-8 text-center">
         <p className="text-[11px] uppercase tracking-[0.28em] text-[var(--gold)]">
-          Southern rules
+          {t("meta.tagline")}
         </p>
         <h1 className="mt-2 font-[family-name:var(--font-display)] text-[2.75rem] leading-none tracking-tight">
           Tiến Lên
         </h1>
         <p className="mt-3 text-sm leading-relaxed text-[var(--mute)]">
-          Climbing cards. 2–4 friends. Bombs beat 2s.
+          {t("meta.blurb")}
         </p>
       </header>
 
       <section className="glass-panel rounded-[1.75rem] p-5">
         <label className="mb-2 block text-[11px] uppercase tracking-[0.16em] text-[var(--gold-dim)]">
-          Your name
+          {t("home.name")}
         </label>
         <input
           value={name}
           onChange={(e) => setNameDraft(e.target.value)}
           maxLength={24}
-          placeholder="Player"
+          placeholder={t("home.namePlaceholder")}
           className="field mb-5"
         />
 
         <label className="mb-2 block text-[11px] uppercase tracking-[0.16em] text-[var(--gold-dim)]">
-          Seats
+          {t("settings.modes")}
         </label>
-        <div className="mb-5 grid grid-cols-3 gap-2">
+        <div className="mb-5">
+          <ModePicker
+            rules={rules}
+            onChange={(next) => {
+              setRules(next);
+              if (next.siege) {
+                setMaxPlayers(4);
+                setBots(3);
+              }
+            }}
+          />
+        </div>
+
+        <label className="mb-2 block text-[11px] uppercase tracking-[0.16em] text-[var(--gold-dim)]">
+          {t("home.bots")}
+        </label>
+        <div className="mb-3 grid grid-cols-3 gap-2">
+          {([1, 2, 3] as const).map((n) => (
+            <button
+              key={n}
+              type="button"
+              disabled={rules.siege && n !== 3}
+              onClick={() => setBots(n)}
+              className={[
+                "min-h-12 rounded-xl text-sm font-semibold",
+                bots === n
+                  ? "bg-[var(--gold)] text-[#1a1408]"
+                  : "bg-black/25 text-[var(--mute)]",
+              ].join(" ")}
+            >
+              {n}
+            </button>
+          ))}
+        </div>
+        <button
+          type="button"
+          onClick={() => {
+            setPlayerName(name);
+            router.push(`/solo?bots=${rules.siege ? 3 : bots}`);
+          }}
+          className="btn-gold mb-5 w-full touch-manipulation"
+        >
+          {t("home.dealVsBots", {
+            n: bots,
+            bots: bots === 1 ? t("home.bot") : t("home.botsWord"),
+          })}
+        </button>
+
+        <div className="mb-4 flex items-center gap-3 text-[11px] uppercase tracking-[0.16em] text-[var(--mute)]">
+          <span className="h-px flex-1 bg-[rgba(244,234,216,0.1)]" />
+          {t("home.friends")}
+          <span className="h-px flex-1 bg-[rgba(244,234,216,0.1)]" />
+        </div>
+
+        <label className="mb-2 block text-[11px] uppercase tracking-[0.16em] text-[var(--gold-dim)]">
+          {t("home.seats")}
+        </label>
+        <div className="mb-3 grid grid-cols-3 gap-2">
           {([2, 3, 4] as const).map((n) => (
             <button
               key={n}
               type="button"
+              disabled={rules.siege && n !== 4}
               onClick={() => setMaxPlayers(n)}
               className={[
                 "min-h-12 rounded-xl text-sm font-semibold",
@@ -112,14 +189,14 @@ export default function HomePage() {
           type="button"
           disabled={creating}
           onClick={() => void createRoom()}
-          className="btn-gold mb-5 w-full touch-manipulation"
+          className="btn-ghost mb-5 w-full touch-manipulation"
         >
-          {creating ? "Opening table…" : "Create table"}
+          {creating ? t("home.creating") : t("home.create")}
         </button>
 
         <div className="mb-4 flex items-center gap-3 text-[11px] uppercase tracking-[0.16em] text-[var(--mute)]">
           <span className="h-px flex-1 bg-[rgba(244,234,216,0.1)]" />
-          Join
+          {t("home.join")}
           <span className="h-px flex-1 bg-[rgba(244,234,216,0.1)]" />
         </div>
 
@@ -127,7 +204,7 @@ export default function HomePage() {
           <input
             value={joinCode}
             onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
-            placeholder="ROOM"
+            placeholder={t("home.roomPlaceholder")}
             className="field min-w-0 flex-1 font-mono tracking-[0.2em]"
             onKeyDown={(e) => {
               if (e.key === "Enter") void joinRoom();
@@ -139,7 +216,7 @@ export default function HomePage() {
             onClick={() => void joinRoom()}
             className="btn-ghost min-w-20 touch-manipulation px-4"
           >
-            {joining ? "…" : "Sit"}
+            {joining ? "…" : t("home.sit")}
           </button>
         </div>
 
@@ -149,6 +226,13 @@ export default function HomePage() {
           </p>
         )}
       </section>
+
+      <SettingsSheet
+        open={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+        rules={rules}
+        onChangeRules={setRules}
+      />
     </main>
   );
 }
