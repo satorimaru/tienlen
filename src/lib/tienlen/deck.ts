@@ -1,4 +1,11 @@
-import { type Card, RANKS, SUITS, sortCards } from "./types";
+import { cardsPerHand, DEFAULT_RULES, type GameRules } from "@/lib/rules";
+import {
+  type Card,
+  isThreeSpades,
+  RANKS,
+  sortCards,
+  SUITS,
+} from "./types";
 
 export function createDeck(): Card[] {
   const deck: Card[] = [];
@@ -19,25 +26,77 @@ export function shuffle<T>(arr: T[], random: () => number = Math.random): T[] {
   return arr;
 }
 
+function pickReplaceIndex(deck: Card[], random: () => number): number {
+  const options: number[] = [];
+  for (let i = 0; i < deck.length; i++) {
+    const card = deck[i];
+    if (card.kind && card.kind !== "std") continue;
+    if (isThreeSpades(card)) continue;
+    options.push(i);
+  }
+  const pool = options.length > 0 ? options : deck.map((_, i) => i);
+  return pool[Math.floor(random() * pool.length)] ?? 0;
+}
+
+export function applyModeCards(
+  deck: Card[],
+  random: () => number,
+  rules: GameRules,
+): Card[] {
+  const next = [...deck];
+
+  const replace = (count: number, make: (i: number) => Card) => {
+    for (let i = 0; i < count; i++) {
+      const idx = pickReplaceIndex(next, random);
+      next[idx] = make(i);
+    }
+  };
+
+  if (rules.chaos) {
+    replace(2, (i) => ({
+      rank: "3",
+      suit: "S",
+      kind: "joker",
+      token: `JK${i + 1}`,
+    }));
+  }
+
+  if (rules.powerup) {
+    const n = 2 + Math.floor(random() * 3);
+    const skips = Math.ceil(n / 2);
+    const reverses = n - skips;
+    replace(skips, (i) => ({
+      rank: "3",
+      suit: "S",
+      kind: "skip",
+      token: `SK${i + 1}`,
+    }));
+    replace(reverses, (i) => ({
+      rank: "3",
+      suit: "S",
+      kind: "reverse",
+      token: `RV${i + 1}`,
+    }));
+  }
+
+  return next;
+}
+
 /**
  * Deal equal hands for 2–4 players from a 52-card deck.
- * - 4 players: 13 each
- * - 3 players: 17 each (1 discarded)
- * - 2 players: 13 each (26 discarded)
- *
- * Discarded cards may include 3♠. The opening lead is whoever
- * holds the lowest card still in play (3♠, else 3♣, else 3♦, …).
+ * Chaos / power-up modes swap a few cards for specials first.
  */
 export function dealHands(
   playerCount: number,
   random: () => number = Math.random,
+  rules: GameRules = DEFAULT_RULES,
 ): Card[][] {
   if (playerCount < 2 || playerCount > 4) {
     throw new Error("playerCount must be 2–4");
   }
 
-  const deck = shuffle(createDeck(), random);
-  const perHand = playerCount === 3 ? 17 : 13;
+  const deck = applyModeCards(shuffle(createDeck(), random), random, rules);
+  const perHand = cardsPerHand(playerCount, rules);
 
   const hands: Card[][] = Array.from({ length: playerCount }, () => []);
   let i = 0;
