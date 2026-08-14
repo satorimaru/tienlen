@@ -7,8 +7,10 @@ import { useClientMounted } from "@/lib/client";
 import { chatBody, fetchRoom, playBody, postRoom } from "@/lib/rooms/client";
 import type { ChatMessage, RoomView } from "@/lib/rooms/types";
 import type { Card } from "@/lib/tienlen/types";
+import { useApp } from "./AppProviders";
 import { ChatButton, ChatSheet } from "./ChatSheet";
 import { GameTable } from "./GameTable";
+import { LangToggle } from "./LangToggle";
 import { Lobby } from "./Lobby";
 
 function unreadChat(
@@ -36,6 +38,7 @@ export function MultiplayerGame({
   playerName,
 }: MultiplayerGameProps) {
   const router = useRouter();
+  const { t, te } = useApp();
   const [room, setRoom] = useState<RoomView | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -84,7 +87,7 @@ export function MultiplayerGame({
         }
       } catch (e) {
         if (!cancelled) {
-          setError(e instanceof Error ? e.message : "Failed to load room");
+          setError(e instanceof Error ? te(e.message) : t("game.notFound"));
         }
       } finally {
         if (!cancelled) setLoading(false);
@@ -135,7 +138,7 @@ export function MultiplayerGame({
         if (next) applyRoom(next);
         return next;
       } catch (e) {
-        setError(e instanceof Error ? e.message : "Action failed");
+        setError(e instanceof Error ? te(e.message) : t("err.requestFailed"));
         try {
           applyRoom(await fetchRoom(roomId, playerId));
         } catch {
@@ -162,10 +165,14 @@ export function MultiplayerGame({
     [applyRoom, roomId, playerId],
   );
 
+  const onTimeout = useCallback(() => {
+    void run(() => postRoom(roomId, { action: "timeout", playerId }));
+  }, [run, roomId, playerId]);
+
   if (loading) {
     return (
       <div className="flex flex-1 items-center justify-center text-[var(--mute)]">
-        Loading table…
+        {t("game.loading")}
       </div>
     );
   }
@@ -173,9 +180,9 @@ export function MultiplayerGame({
   if (!room) {
     return (
       <div className="flex flex-1 flex-col items-center justify-center gap-3 px-4 text-center">
-        <p className="text-lg text-[#f0b4bd]">{error ?? "Room not found"}</p>
+        <p className="text-lg text-[#f0b4bd]">{error ?? t("game.notFound")}</p>
         <Link href="/" className="text-sm text-[var(--gold)]">
-          Home
+          {t("nav.home")}
         </Link>
       </div>
     );
@@ -206,7 +213,10 @@ export function MultiplayerGame({
 
   if (room.status === "waiting") {
     return (
-      <div className="flex min-h-dvh flex-1 items-center px-3 py-6 sm:px-4">
+      <div className="flex min-h-dvh flex-1 flex-col items-center justify-center px-3 py-6 sm:px-4">
+        <div className="mb-3 w-full max-w-md">
+          <LangToggle />
+        </div>
         <Lobby
           room={room}
           playerId={playerId}
@@ -222,6 +232,11 @@ export function MultiplayerGame({
           }}
           onStart={() => {
             void run(() => postRoom(roomId, { action: "start", playerId }));
+          }}
+          onChangeRules={(next) => {
+            void run(() =>
+              postRoom(roomId, { action: "rules", playerId, rules: next }),
+            );
           }}
           onLeave={() => {
             void run(async () => {
@@ -240,7 +255,7 @@ export function MultiplayerGame({
     <div className="mx-auto flex h-dvh w-full max-w-lg flex-col overflow-hidden px-2 pt-[max(0.4rem,env(safe-area-inset-top))]">
       <header className="mb-1 flex shrink-0 items-center justify-between px-1 py-1">
         <Link href="/" className="min-h-9 text-xs text-[var(--mute)]">
-          Home
+          {t("nav.home")}
         </Link>
         <span className="font-mono text-xs tracking-[0.16em] text-[var(--gold)]">
           {room.id}
@@ -275,6 +290,7 @@ export function MultiplayerGame({
             () => undefined,
           )
         }
+        onTimeout={onTimeout}
       />
       {chat}
     </div>
