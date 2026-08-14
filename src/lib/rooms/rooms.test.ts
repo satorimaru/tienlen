@@ -8,6 +8,7 @@ import {
   rematchRoom,
   sendMessage,
   setReady,
+  setRoomRules,
   startGame,
 } from "./service";
 import { MAX_CHAT_TEXT } from "./types";
@@ -83,7 +84,7 @@ describe("rooms", () => {
     const waiterHand = started.hands[waiter.id];
     await expect(
       playCards(started.id, waiter.id, [waiterHand[0]]),
-    ).rejects.toThrow(/Not your turn/);
+    ).rejects.toThrow(/notYourTurn/);
   });
 
   it("stores table chat without touching the turn", async () => {
@@ -127,5 +128,30 @@ describe("rooms", () => {
       "good luck",
     ]);
     expect(chatting.turnVersion).toBe(started.turnVersion);
+  });
+
+  it("stores house rules and deals 13 in a 3-player room when 17 is off", async () => {
+    const room = await createRoom("host-7", "Host", 3, {
+      threePlayerSeventeen: false,
+      noFinishOnTwo: true,
+    });
+    expect(room.rules.threePlayerSeventeen).toBe(false);
+    expect(room.rules.noFinishOnTwo).toBe(true);
+
+    await joinRoom(room.id, "g1", "A");
+    await joinRoom(room.id, "g2", "B");
+    const updated = await setRoomRules(room.id, "host-7", {
+      threePlayerSeventeen: false,
+      noFinishOnTwo: false,
+    });
+    expect(updated.rules.noFinishOnTwo).toBe(false);
+
+    await setReady(room.id, "host-7", true);
+    await setReady(room.id, "g1", true);
+    await setReady(room.id, "g2", true);
+    const started = await startGame(room.id, "host-7");
+    expect(
+      Object.values(started.hands).every((h) => h.length === 13),
+    ).toBe(true);
   });
 });

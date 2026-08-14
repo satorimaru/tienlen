@@ -10,9 +10,11 @@ import {
   validatePass,
   validatePlay,
 } from "@/lib/tienlen/engine";
-import { parseCardId, type Card } from "@/lib/tienlen/types";
+import { parseCardId, parseFace, type Card } from "@/lib/tienlen/types";
 import { RoomError } from "./errors";
 import { deleteRoom, getRoom, saveRoom, updateRoom, withRoomLock } from "./store";
+import { chooseBotAction } from "@/lib/tienlen/bot";
+import { BLITZ_MS, parseRules, type GameRules } from "@/lib/rules";
 import { MAX_CHAT_TEXT, type Room, type RoomPlayer } from "./types";
 
 const roomCode = customAlphabet("ABCDEFGHJKLMNPQRSTUVWXYZ23456789", 6);
@@ -84,6 +86,8 @@ function handStateFromRoom(room: Room): HandState {
     finishOrder,
     leadCard: room.leadCard,
     playerCount: room.players.length,
+    rules: parseRules(room.rules),
+    direction: room.direction === -1 ? -1 : 1,
   };
 }
 
@@ -100,6 +104,8 @@ function applyHandStateToRoom(room: Room, state: HandState): void {
   room.passesInRow = state.passesInRow;
   room.leadCard = state.leadCard;
   room.turnVersion += 1;
+  room.direction = state.direction;
+  room.turnStartedAt = now();
 
   const cur = room.players.find((p) => p.seat === state.currentSeat);
   room.currentPlayerId = cur?.id ?? null;
@@ -133,12 +139,38 @@ export function parseCards(input: unknown): Card[] {
       cards.push(card);
       continue;
     }
-    if (item && typeof item === "object" && "rank" in item && "suit" in item) {
-      const raw = item as { rank: unknown; suit: unknown };
-      const card = parseCardId(`${String(raw.rank)}${String(raw.suit)}`);
-      if (!card) throw new RoomError("Invalid card", 400);
-      cards.push(card);
-      continue;
+    if (item && typeof item === "object") {
+      const raw = item as {
+        rank?: unknown;
+        suit?: unknown;
+        kind?: unknown;
+        token?: unknown;
+        as?: unknown;
+      };
+      const face = parseFace(raw.as);
+      if (raw.token) {
+        const card = parseCardId(String(raw.token));
+        if (!card) throw new RoomError("Invalid card", 400);
+        if (face) card.as = face;
+        cards.push(card);
+        continue;
+      }
+      if (raw.kind === "joker" || raw.kind === "skip" || raw.kind === "reverse") {
+        cards.push({
+          rank: "3",
+          suit: "S",
+          kind: raw.kind,
+          token: String(raw.token ?? raw.kind),
+          as: face ?? undefined,
+        });
+        continue;
+      }
+      if (raw.rank && raw.suit) {
+        const card = parseCardId(`${String(raw.rank)}${String(raw.suit)}`);
+        if (!card) throw new RoomError("Invalid card", 400);
+        cards.push(card);
+        continue;
+      }
     }
     throw new RoomError("Invalid card", 400);
   }
@@ -149,6 +181,7 @@ export async function createRoom(
   hostId: string,
   hostName: string,
   maxPlayers: 2 | 3 | 4 = 4,
+  rules?: Partial<GameRules>,
 ): Promise<Room> {
   if (![2, 3, 4].includes(maxPlayers)) {
     throw new RoomError("maxPlayers must be 2, 3, or 4", 400);
@@ -156,6 +189,9 @@ export async function createRoom(
   if (!hostId.trim()) {
     throw new RoomError("playerId required", 400);
   }
+
+  const nextRules = parseRules(rules);
+  if (nextRules.siege) maxPlayers = 4;
 
   const room: Room = {
     id: roomCode(),
@@ -175,6 +211,9 @@ export async function createRoom(
     winners: [],
     lastEvent: { kind: "join", playerId: hostId },
     messages: [],
+    rules: nextRules,
+    direction: 1,
+    turnStartedAt: null,
     startedAt: null,
     createdAt: now(),
   };
@@ -310,6 +349,9 @@ export async function startGame(
     if (room.status !== "waiting") {
       throw new RoomError("Game already started", 409);
     }
+    if (parseRules(room.rules).siege && room.players.length !== 4) {
+      throw new RoomError("Team Siege needs 4 players", 400);
+    }
     if (room.players.length < 2) {
       throw new RoomError("Need at least 2 players", 400);
     }
@@ -318,7 +360,11 @@ export async function startGame(
     }
 
     reseat(room);
-    const state = createHandState(room.players.length);
+    const state = createHandState(
+      room.players.length,
+      Math.random,
+      parseRules(room.rules),
+    );
     room.status = "playing";
     room.startedAt = now();
     room.winners = [];
@@ -338,6 +384,8 @@ export async function startGame(
     room.passesInRow = 0;
     room.lastPlayPlayerId = null;
     assignOpeningLead(room);
+    room.direction = 1;
+    room.turnStartedAt = now();
     touch(room, playerId);
   });
 }
@@ -440,6 +488,8 @@ export async function rematchRoom(
     room.leadCard = null;
     room.winners = [];
     room.startedAt = null;
+    room.direction = 1;
+    room.turnStartedAt = null;
     room.lastEvent = { kind: "rematch" };
     touch(room, playerId);
 
@@ -448,6 +498,75 @@ export async function rematchRoom(
       p.cardCount = 0;
       p.finishOrder = null;
     }
+  });
+}
+
+export async function timeoutTurn(
+  roomId: string,
+  playerId: string,
+  ): Promise<Room> {
+  return updateRoom(roomId, (room) => {
+    requirePlayer(room, playerId);
+    if (room.status !== "playing") {
+      throw new RoomError("Game not in progress", 409);
+    }
+    if (!parseRules(room.rules).blitz) {
+      throw new RoomError("Blitz is off", 400);
+    }
+    if (!room.currentPlayerId) {
+      throw new RoomError("No active turn", 400);
+    }
+    const started = room.turnStartedAt ?? 0;
+    if (now() - started < BLITZ_MS - 250) {
+      throw new RoomError("Timer still running", 409);
+    }
+
+    const state = handStateFromRoom(room);
+    const seat =
+      room.players.find((p) => p.id === room.currentPlayerId)?.seat ?? 0;
+    const action = chooseBotAction(state, seat);
+    const actor = room.currentPlayerId;
+
+    if (action.type === "pass") {
+      const check = validatePass(state, seat);
+      if (!check.ok) {
+        throw new RoomError(check.error, 400);
+      }
+      applyHandStateToRoom(room, applyPass(state, seat));
+      room.lastEvent = { kind: "pass", playerId: actor };
+      return;
+    }
+
+    const check = validatePlay(state, seat, action.cards);
+    if (!check.ok) {
+      throw new RoomError(check.error, 400);
+    }
+    applyHandStateToRoom(room, applyPlay(state, seat, action.cards));
+    room.lastEvent = {
+      kind: "play",
+      playerId: actor,
+      comboType: check.combo.type,
+      cards: action.cards,
+    };
+  });
+}
+
+export async function setRoomRules(
+  roomId: string,
+  playerId: string,
+  raw: unknown,
+): Promise<Room> {
+  return updateRoom(roomId, (room) => {
+    if (room.hostId !== playerId) {
+      throw new RoomError("Only the host can change rules", 403);
+    }
+    if (room.status !== "waiting") {
+      throw new RoomError("Rules are locked after the deal", 409);
+    }
+    requirePlayer(room, playerId);
+    const next = parseRules(raw);
+    room.rules = next;
+    if (next.siege) room.maxPlayers = 4;
   });
 }
 
