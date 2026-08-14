@@ -10,7 +10,9 @@ import {
   rematchRoom,
   sendMessage,
   setReady,
+  setRoomRules,
   startGame,
+  timeoutTurn,
 } from "@/lib/rooms/service";
 import { toPublicView, toRoomView } from "@/lib/rooms/view";
 
@@ -105,6 +107,14 @@ export async function POST(request: Request, { params }: Params) {
       }
       case "chat": {
         const room = await sendMessage(roomId, playerId, body.text);
+        return NextResponse.json({ room: toRoomView(room, playerId) });
+      }
+      case "rules": {
+        const room = await setRoomRules(roomId, playerId, body.rules);
+        return NextResponse.json({ room: toRoomView(room, playerId) });
+      }
+      case "timeout": {
+        const room = await timeoutTurn(roomId, playerId);
         return NextResponse.json({ room: toRoomView(room, playerId) });
       }
       default:

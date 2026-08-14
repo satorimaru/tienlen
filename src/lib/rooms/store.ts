@@ -1,5 +1,6 @@
 import { Redis } from "@upstash/redis";
 import { customAlphabet } from "nanoid";
+import { parseRules } from "@/lib/rules";
 import { RoomError } from "./errors";
 import type { Room } from "./types";
 
@@ -44,6 +45,9 @@ export function usingRedis(): boolean {
 function hydrateRoom(room: Room | null): Room | null {
   if (!room) return null;
   if (!Array.isArray(room.messages)) room.messages = [];
+  room.rules = parseRules(room.rules);
+  if (room.direction !== 1 && room.direction !== -1) room.direction = 1;
+  if (room.turnStartedAt == null) room.turnStartedAt = null;
   return room;
 }
 

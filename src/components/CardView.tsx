@@ -1,6 +1,6 @@
 "use client";
 
-import { formatCard, type Card } from "@/lib/tienlen/types";
+import { cardKind, formatCard, type Card } from "@/lib/tienlen/types";
 
 const SUIT_SYMBOL: Record<Card["suit"], string> = {
   S: "♠",
@@ -41,8 +41,15 @@ export function CardView({
     );
   }
 
+  const kind = cardKind(card);
+  const special =
+    kind === "joker" ? "★" : kind === "skip" ? "⏭" : kind === "reverse" ? "↻" : null;
   const red = card.suit === "D" || card.suit === "H";
-  const ink = red ? "text-[#c41e3a]" : "text-[#1a1612]";
+  const ink = special
+    ? "text-[#6b2a86]"
+    : red
+      ? "text-[#c41e3a]"
+      : "text-[#1a1612]";
   const symbol = SUIT_SYMBOL[card.suit];
   const interactive = Boolean(onClick) && !disabled;
 
@@ -63,9 +70,29 @@ export function CardView({
       aria-pressed={selected}
       aria-label={formatCard(card)}
     >
-      <span className="self-start leading-none">{card.rank}</span>
-      <span className="text-[1.15em] leading-none">{symbol}</span>
-      <span className="self-end rotate-180 leading-none">{card.rank}</span>
+      {special ? (
+        <>
+          <span className="self-start text-[10px] leading-none uppercase">
+            {kind === "joker" ? "JK" : kind === "skip" ? "SK" : "RV"}
+          </span>
+          <span className="text-[1.35em] leading-none">{special}</span>
+          <span className="self-end text-[10px] leading-none uppercase">
+            {kind === "joker" && card.as
+              ? `${card.as.rank}${SUIT_SYMBOL[card.as.suit]}`
+              : kind === "joker"
+                ? "JK"
+                : kind === "skip"
+                  ? "SK"
+                  : "RV"}
+          </span>
+        </>
+      ) : (
+        <>
+          <span className="self-start leading-none">{card.rank}</span>
+          <span className="text-[1.15em] leading-none">{symbol}</span>
+          <span className="self-end rotate-180 leading-none">{card.rank}</span>
+        </>
+      )}
     </button>
   );
 }

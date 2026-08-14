@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useParams } from "next/navigation";
 import { MultiplayerGame } from "@/components/MultiplayerGame";
 import { useClientMounted } from "@/lib/client";
+import { useApp } from "@/components/AppProviders";
 import {
   getOrCreatePlayerId,
   getPlayerName,
@@ -19,13 +20,14 @@ export default function GamePage() {
   const [nameDraft, setNameDraft] = useState("");
   const [confirmed, setConfirmed] = useState(false);
 
+  const { t } = useApp();
   const playerName = nameDraft || storedName;
   const nameReady = confirmed || Boolean(storedName);
 
   if (!roomId) {
     return (
       <div className="flex flex-1 items-center justify-center text-[#f0b4bd]">
-        Invalid room
+        {t("game.invalid")}
       </div>
     );
   }
@@ -33,7 +35,7 @@ export default function GamePage() {
   if (!playerId) {
     return (
       <div className="flex flex-1 items-center justify-center text-[var(--mute)]">
-        Loading…
+        {t("game.loading")}
       </div>
     );
   }
@@ -43,7 +45,7 @@ export default function GamePage() {
       <main className="mx-auto flex w-full max-w-sm flex-1 flex-col justify-center px-4 py-12">
         <div className="glass-panel rounded-[1.75rem] p-6">
           <p className="text-[11px] uppercase tracking-[0.18em] text-[var(--gold-dim)]">
-            Join table
+            {t("game.joinTable")}
           </p>
           <h1 className="mt-1 font-[family-name:var(--font-display)] text-2xl">
             {roomId}
@@ -52,7 +54,7 @@ export default function GamePage() {
             value={nameDraft}
             onChange={(e) => setNameDraft(e.target.value)}
             maxLength={24}
-            placeholder="Your name"
+            placeholder={t("home.name")}
             className="field mt-5"
             onKeyDown={(e) => {
               if (e.key === "Enter" && nameDraft.trim()) {
@@ -70,7 +72,7 @@ export default function GamePage() {
             }}
             className="btn-gold mt-4 w-full"
           >
-            Sit down
+            {t("game.sitDown")}
           </button>
         </div>
       </main>
