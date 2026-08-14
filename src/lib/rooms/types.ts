@@ -22,6 +22,16 @@ export type RoomEvent =
   | { kind: "pass"; playerId: string }
   | { kind: "rematch" };
 
+export interface ChatMessage {
+  id: string;
+  playerId: string;
+  name: string;
+  text: string;
+  createdAt: number;
+}
+
+export const MAX_CHAT_TEXT = 160;
+
 export interface Room {
   id: string;
   revision: number;
@@ -41,6 +51,8 @@ export interface Room {
   leadCard: Card | null;
   winners: string[];
   lastEvent: RoomEvent | null;
+  /** Newest last. Capped in sendMessage. */
+  messages: ChatMessage[];
   startedAt: number | null;
   createdAt: number;
 }
@@ -62,6 +74,7 @@ export interface RoomView {
   leadCard: Card | null;
   winners: string[];
   lastEvent: RoomEvent | null;
+  messages: ChatMessage[];
   startedAt: number | null;
   createdAt: number;
   you: string | null;

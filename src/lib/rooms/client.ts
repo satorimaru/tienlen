@@ -49,3 +49,10 @@ export function playBody(
 ): Record<string, unknown> {
   return { action: "play", playerId, cards, turnVersion };
 }
+
+export function chatBody(
+  playerId: string,
+  text: string,
+): Record<string, unknown> {
+  return { action: "chat", playerId, text };
+}

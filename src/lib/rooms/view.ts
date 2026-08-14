@@ -8,7 +8,7 @@ function publicPlayers(room: Room) {
   }));
 }
 
-function baseView(room: Room): Omit<RoomView, "hand" | "you"> {
+function baseView(room: Room): Omit<RoomView, "hand" | "you" | "messages"> {
   return {
     id: room.id,
     revision: room.revision,
@@ -37,6 +37,7 @@ export function toPublicView(room: Room): RoomView {
     ...baseView(room),
     hand: [],
     you: null,
+    messages: [],
   };
 }
 
@@ -47,5 +48,6 @@ export function toRoomView(room: Room, playerId: string): RoomView {
     ...baseView(room),
     hand: seated ? (room.hands[playerId] ?? []) : [],
     you: seated ? playerId : null,
+    messages: seated ? (room.messages ?? []) : [],
   };
 }

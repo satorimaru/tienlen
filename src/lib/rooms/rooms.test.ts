@@ -5,9 +5,12 @@ import {
   joinRoom,
   leaveRoom,
   playCards,
+  rematchRoom,
+  sendMessage,
   setReady,
   startGame,
 } from "./service";
+import { MAX_CHAT_TEXT } from "./types";
 import { sameCard } from "@/lib/tienlen/types";
 import { getRoom } from "./store";
 import { toPublicView, toRoomView } from "./view";
@@ -81,5 +84,48 @@ describe("rooms", () => {
     await expect(
       playCards(started.id, waiter.id, [waiterHand[0]]),
     ).rejects.toThrow(/Not your turn/);
+  });
+
+  it("stores table chat without touching the turn", async () => {
+    const room = await createRoom("host-6", "Host", 2);
+    await joinRoom(room.id, "guest-6", "Guest");
+    const turnBefore = room.turnVersion;
+
+    const after = await sendMessage(room.id, "host-6", "  hello table  ");
+    expect(after.turnVersion).toBe(turnBefore);
+    expect(after.messages).toHaveLength(1);
+    expect(after.messages[0].text).toBe("hello table");
+    expect(after.messages[0].name).toBe("Host");
+    expect(after.revision).toBeGreaterThan(room.revision);
+
+    await expect(sendMessage(room.id, "stranger", "hi")).rejects.toThrow(
+      /Not a player/,
+    );
+    await expect(sendMessage(room.id, "host-6", "   ")).rejects.toThrow(
+      /Message required/,
+    );
+    await expect(
+      sendMessage(room.id, "guest-6", "x".repeat(MAX_CHAT_TEXT + 1)),
+    ).rejects.toThrow(/under/);
+
+    const hostView = toRoomView(after, "host-6");
+    const publicView = toPublicView(after);
+    expect(hostView.messages).toHaveLength(1);
+    expect(publicView.messages).toEqual([]);
+
+    const rematched = await rematchRoom(room.id, "host-6");
+    expect(rematched.messages).toHaveLength(1);
+    expect(rematched.messages[0].text).toBe("hello table");
+
+    await setReady(room.id, "host-6", true);
+    await setReady(room.id, "guest-6", true);
+    const started = await startGame(room.id, "host-6");
+    expect(started.messages).toHaveLength(1);
+    const chatting = await sendMessage(room.id, "guest-6", "good luck");
+    expect(chatting.messages.map((m) => m.text)).toEqual([
+      "hello table",
+      "good luck",
+    ]);
+    expect(chatting.turnVersion).toBe(started.turnVersion);
   });
 });

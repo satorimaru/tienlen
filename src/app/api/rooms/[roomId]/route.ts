@@ -8,6 +8,7 @@ import {
   passTurn,
   playCards,
   rematchRoom,
+  sendMessage,
   setReady,
   startGame,
 } from "@/lib/rooms/service";
@@ -100,6 +101,10 @@ export async function POST(request: Request, { params }: Params) {
       }
       case "rematch": {
         const room = await rematchRoom(roomId, playerId);
+        return NextResponse.json({ room: toRoomView(room, playerId) });
+      }
+      case "chat": {
+        const room = await sendMessage(roomId, playerId, body.text);
         return NextResponse.json({ room: toRoomView(room, playerId) });
       }
       default:

@@ -41,12 +41,18 @@ export function usingRedis(): boolean {
   return hasRedis();
 }
 
+function hydrateRoom(room: Room | null): Room | null {
+  if (!room) return null;
+  if (!Array.isArray(room.messages)) room.messages = [];
+  return room;
+}
+
 export async function getRoom(id: string): Promise<Room | null> {
   if (hasRedis()) {
     const data = await getRedis().get<Room>(KEY_PREFIX + id);
-    return data ?? null;
+    return hydrateRoom(data ?? null);
   }
-  return memMap().get(id) ?? null;
+  return hydrateRoom(memMap().get(id) ?? null);
 }
 
 export async function saveRoom(room: Room): Promise<void> {

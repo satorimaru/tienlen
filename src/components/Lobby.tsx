@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import type { RoomView } from "@/lib/rooms/types";
+import { ChatButton } from "./ChatSheet";
 
 interface LobbyProps {
   room: RoomView;
@@ -11,6 +12,7 @@ interface LobbyProps {
   onStart: () => void;
   onLeave: () => void;
   onOpenChat: () => void;
+  unread?: number;
   busy?: boolean;
   error?: string | null;
 }
@@ -23,6 +25,7 @@ export function Lobby({
   onStart,
   onLeave,
   onOpenChat,
+  unread = 0,
   busy,
   error,
 }: LobbyProps) {
@@ -59,13 +62,11 @@ export function Lobby({
             {room.players.length}/{room.maxPlayers} seated
           </p>
         </div>
-        <button
-          type="button"
+        <ChatButton
+          unread={unread}
           onClick={onOpenChat}
           className="min-h-11 rounded-full border border-[rgba(212,176,106,0.22)] px-3 text-xs tracking-wide text-[var(--gold)]"
-        >
-          Chat
-        </button>
+        />
       </div>
 
       <div className="mb-5 flex gap-2">

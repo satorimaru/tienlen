@@ -13,9 +13,13 @@ import {
 import { parseCardId, type Card } from "@/lib/tienlen/types";
 import { RoomError } from "./errors";
 import { deleteRoom, getRoom, saveRoom, updateRoom, withRoomLock } from "./store";
-import type { Room, RoomPlayer } from "./types";
+import { MAX_CHAT_TEXT, type Room, type RoomPlayer } from "./types";
 
 const roomCode = customAlphabet("ABCDEFGHJKLMNPQRSTUVWXYZ23456789", 6);
+const chatId = customAlphabet("0123456789abcdefghijklmnopqrstuvwxyz", 10);
+
+const MAX_CHAT_MESSAGES = 80;
+const CHAT_GAP_MS = 400;
 
 function now(): number {
   return Date.now();
@@ -170,6 +174,7 @@ export async function createRoom(
     leadCard: null,
     winners: [],
     lastEvent: { kind: "join", playerId: hostId },
+    messages: [],
     startedAt: null,
     createdAt: now(),
   };
@@ -443,5 +448,42 @@ export async function rematchRoom(
       p.cardCount = 0;
       p.finishOrder = null;
     }
+  });
+}
+
+export async function sendMessage(
+  roomId: string,
+  playerId: string,
+  rawText: unknown,
+): Promise<Room> {
+  const text = typeof rawText === "string" ? rawText.trim() : "";
+  if (!text) throw new RoomError("Message required", 400);
+  if (text.length > MAX_CHAT_TEXT) {
+    throw new RoomError(`Keep it under ${MAX_CHAT_TEXT} characters`, 400);
+  }
+
+  return updateRoom(roomId, (room) => {
+    const player = requirePlayer(room, playerId);
+    touch(room, playerId);
+
+    const messages = room.messages ?? [];
+    const lastOwn = [...messages]
+      .reverse()
+      .find((m) => m.playerId === playerId);
+    if (lastOwn && now() - lastOwn.createdAt < CHAT_GAP_MS) {
+      throw new RoomError("Slow down", 429);
+    }
+
+    messages.push({
+      id: chatId(),
+      playerId,
+      name: player.name,
+      text,
+      createdAt: now(),
+    });
+    room.messages =
+      messages.length > MAX_CHAT_MESSAGES
+        ? messages.slice(-MAX_CHAT_MESSAGES)
+        : messages;
   });
 }

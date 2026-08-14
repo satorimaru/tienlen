@@ -4,12 +4,23 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useClientMounted } from "@/lib/client";
-import { fetchRoom, playBody, postRoom } from "@/lib/rooms/client";
-import type { RoomView } from "@/lib/rooms/types";
+import { chatBody, fetchRoom, playBody, postRoom } from "@/lib/rooms/client";
+import type { ChatMessage, RoomView } from "@/lib/rooms/types";
 import type { Card } from "@/lib/tienlen/types";
-import { ChatSheet } from "./ChatSheet";
+import { ChatButton, ChatSheet } from "./ChatSheet";
 import { GameTable } from "./GameTable";
 import { Lobby } from "./Lobby";
+
+function unreadChat(
+  messages: ChatMessage[],
+  seenId: string,
+  playerId: string,
+): number {
+  if (messages.length === 0) return 0;
+  const idx = seenId ? messages.findIndex((m) => m.id === seenId) : -1;
+  const start = idx >= 0 ? idx + 1 : 0;
+  return messages.slice(start).filter((m) => m.playerId !== playerId).length;
+}
 
 interface MultiplayerGameProps {
   roomId: string;
@@ -30,11 +41,14 @@ export function MultiplayerGame({
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
+  const [chatBusy, setChatBusy] = useState(false);
   const mounted = useClientMounted();
   const inviteUrl = mounted
     ? `${window.location.origin}/game/${roomId}`
     : `/game/${roomId}`;
   const roomRef = useRef<RoomView | null>(null);
+  const seenChatIdRef = useRef<string | null>(null);
+  const chatPrimedRef = useRef(false);
 
   const applyRoom = useCallback((next: RoomView) => {
     const prev = roomRef.current;
@@ -135,6 +149,19 @@ export function MultiplayerGame({
     [applyRoom, roomId, playerId],
   );
 
+  const sendChat = useCallback(
+    async (text: string) => {
+      setChatBusy(true);
+      try {
+        const next = await postRoom(roomId, chatBody(playerId, text));
+        if (next) applyRoom(next);
+      } finally {
+        setChatBusy(false);
+      }
+    },
+    [applyRoom, roomId, playerId],
+  );
+
   if (loading) {
     return (
       <div className="flex flex-1 items-center justify-center text-[var(--mute)]">
@@ -154,6 +181,29 @@ export function MultiplayerGame({
     );
   }
 
+  const messages = room.messages ?? [];
+  if (!chatPrimedRef.current) {
+    chatPrimedRef.current = true;
+    seenChatIdRef.current = messages.at(-1)?.id ?? "";
+  }
+  if (chatOpen) {
+    seenChatIdRef.current = messages.at(-1)?.id ?? "";
+  }
+  const unread = chatOpen
+    ? 0
+    : unreadChat(messages, seenChatIdRef.current ?? "", playerId);
+
+  const chat = (
+    <ChatSheet
+      open={chatOpen}
+      onClose={() => setChatOpen(false)}
+      messages={messages}
+      playerId={playerId}
+      onSend={sendChat}
+      busy={chatBusy}
+    />
+  );
+
   if (room.status === "waiting") {
     return (
       <div className="flex min-h-dvh flex-1 items-center px-3 py-6 sm:px-4">
@@ -163,6 +213,7 @@ export function MultiplayerGame({
           inviteUrl={inviteUrl}
           busy={busy}
           error={error}
+          unread={unread}
           onOpenChat={() => setChatOpen(true)}
           onReady={(ready) => {
             void run(() =>
@@ -180,7 +231,7 @@ export function MultiplayerGame({
             });
           }}
         />
-        <ChatSheet open={chatOpen} onClose={() => setChatOpen(false)} />
+        {chat}
       </div>
     );
   }
@@ -194,13 +245,11 @@ export function MultiplayerGame({
         <span className="font-mono text-xs tracking-[0.16em] text-[var(--gold)]">
           {room.id}
         </span>
-        <button
-          type="button"
+        <ChatButton
+          unread={unread}
           onClick={() => setChatOpen(true)}
           className="min-h-9 text-xs text-[var(--gold)]"
-        >
-          Chat
-        </button>
+        />
       </header>
       <GameTable
         room={room}
@@ -227,7 +276,7 @@ export function MultiplayerGame({
           )
         }
       />
-      <ChatSheet open={chatOpen} onClose={() => setChatOpen(false)} />
+      {chat}
     </div>
   );
 }
