@@ -2,7 +2,11 @@ import {
   type Card,
   type Combo,
   type ComboType,
+  cardKind,
   cardValue,
+  isJoker,
+  isPowerUp,
+  isSpecial,
   rankIndex,
   sortCards,
 } from "./types";
@@ -21,12 +25,8 @@ function isConsecutiveRanks(ranks: number[]): boolean {
   return true;
 }
 
-/**
- * Detect a single legal combo from the exact set of selected cards.
- * Returns null if cards do not form a valid combination.
- */
-export function detectCombo(cards: Card[]): Combo | null {
-  if (cards.length === 0) return null;
+function detectNatural(cards: Card[]): Combo | null {
+  if (cards.length === 0 || cards.some(isSpecial)) return null;
   const sorted = sortCards(cards);
   const n = sorted.length;
 
@@ -97,12 +97,62 @@ export function detectCombo(cards: Card[]): Combo | null {
   return null;
 }
 
+function resolveJokerFace(card: Card): Card | null {
+  if (!isJoker(card)) return { ...card, kind: "std", token: undefined, as: undefined };
+  if (!card.as) return null;
+  if (card.as.rank === "2") return null;
+  return { rank: card.as.rank, suit: card.as.suit };
+}
+
+function detectWithJokers(cards: Card[]): Combo | null {
+  const rest = cards.filter((c) => !isJoker(c));
+  if (rest.some(isSpecial)) return null;
+
+  const faces: Card[] = [];
+  for (const card of cards.filter(isJoker)) {
+    const face = resolveJokerFace(card);
+    if (!face) return null;
+    faces.push(face);
+  }
+
+  const found = detectNatural([...rest, ...faces]);
+  if (!found) return null;
+  if (found.type === "quad" || found.type === "double_sequence") return null;
+  return {
+    ...found,
+    cards: sortCards(cards),
+  };
+}
+
+/**
+ * Detect a single legal combo from the exact set of selected cards.
+ * Jokers fill any rank/suit except bombs and four-of-a-kind.
+ */
+export function detectCombo(cards: Card[]): Combo | null {
+  if (cards.length === 0) return null;
+
+  if (cards.some(isPowerUp)) {
+    if (cards.length !== 1) return null;
+    const kind = cardKind(cards[0]);
+    if (kind !== "skip" && kind !== "reverse") return null;
+    return {
+      type: kind,
+      cards: [...cards],
+      highCard: cards[0],
+      length: 1,
+    };
+  }
+
+  if (cards.some(isJoker)) return detectWithJokers(cards);
+  return detectNatural(cards);
+}
+
 function isTwos(combo: Combo): boolean {
   return (
     (combo.type === "single" ||
       combo.type === "pair" ||
       combo.type === "triple") &&
-    combo.cards.every((c) => c.rank === "2")
+    combo.cards.every((c) => c.rank === "2" && !isSpecial(c))
   );
 }
 
@@ -130,11 +180,12 @@ function bombBeatsTwos(play: Combo, pile: Combo): boolean {
 /**
  * Can `play` beat `pile`?
  * Empty pile: any legal combo.
- * Otherwise same type & length with a strictly higher top card,
- * or a bomb that beats 2s (see bombBeatsTwos).
+ * Power-ups do not climb against regular sets.
  */
 export function beats(play: Combo, pile: Combo | null): boolean {
   if (!pile) return true;
+  if (play.type === "skip" || play.type === "reverse") return false;
+  if (pile.type === "skip" || pile.type === "reverse") return false;
 
   if (bombBeatsTwos(play, pile)) return true;
 
@@ -172,5 +223,9 @@ export function comboLabel(type: ComboType): string {
       return "sequence";
     case "double_sequence":
       return "double sequence";
+    case "skip":
+      return "skip";
+    case "reverse":
+      return "reverse";
   }
 }

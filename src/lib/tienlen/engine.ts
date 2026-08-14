@@ -1,9 +1,12 @@
+import { DEFAULT_RULES, parseRules, teamOf, type GameRules } from "@/lib/rules";
 import { beats, detectCombo } from "./combos";
 import { dealHands } from "./deck";
 import {
   type Card,
   type Combo,
   cardValue,
+  isJoker,
+  isSpecial,
   sameCard,
   sortCards,
 } from "./types";
@@ -18,6 +21,25 @@ export interface HandState {
   /** First lead of the hand must include this card. Cleared after that play. */
   leadCard: Card | null;
   playerCount: number;
+  rules: GameRules;
+  /** 1 = clockwise, -1 = reversed (power-up mode). */
+  direction: 1 | -1;
+}
+
+export function isStuckOnLastTwo(hand: Card[], rules: GameRules): boolean {
+  return rules.noFinishOnTwo && hand.length === 1 && hand[0]?.rank === "2";
+}
+
+function wouldFinishOnTwo(
+  hand: Card[],
+  cards: Card[],
+  rules: GameRules,
+): boolean {
+  return (
+    rules.noFinishOnTwo &&
+    cards.length === hand.length &&
+    cards.some((c) => c.rank === "2")
+  );
 }
 
 export function lowestCardInPlay(
@@ -27,6 +49,7 @@ export function lowestCardInPlay(
   let best: Card | null = null;
   for (let s = 0; s < hands.length; s++) {
     for (const card of hands[s]) {
+      if (isSpecial(card)) continue;
       if (!best || cardValue(card) < cardValue(best)) {
         best = card;
         bestSeat = s;
@@ -39,13 +62,18 @@ export function lowestCardInPlay(
 export function createHandState(
   playerCount: number,
   random: () => number = Math.random,
+  rules: Partial<GameRules> = DEFAULT_RULES,
 ): HandState {
-  const hands = dealHands(playerCount, random);
-  return handStateFromHands(hands);
+  const nextRules = parseRules(rules);
+  const hands = dealHands(playerCount, random, nextRules);
+  return handStateFromHands(hands, nextRules);
 }
 
 /** Build a new hand from already-dealt cards (tests + rematch). */
-export function handStateFromHands(hands: Card[][]): HandState {
+export function handStateFromHands(
+  hands: Card[][],
+  rules: Partial<GameRules> = DEFAULT_RULES,
+): HandState {
   const playerCount = hands.length;
   if (playerCount < 2 || playerCount > 4) {
     throw new Error("playerCount must be 2–4");
@@ -62,6 +90,8 @@ export function handStateFromHands(hands: Card[][]): HandState {
     finishOrder: [],
     leadCard: opening?.card ?? null,
     playerCount,
+    rules: parseRules(rules),
+    direction: 1,
   };
 }
 
@@ -74,10 +104,11 @@ function activeSeats(state: HandState): number[] {
 function nextActiveSeat(state: HandState, from: number): number {
   const active = activeSeats(state);
   if (active.length === 0) return from;
-  let s = (from + 1) % state.playerCount;
+  const dir = state.direction >= 0 ? 1 : -1;
+  let s = (from + dir + state.playerCount) % state.playerCount;
   for (let i = 0; i < state.playerCount; i++) {
     if (active.includes(s)) return s;
-    s = (s + 1) % state.playerCount;
+    s = (s + dir + state.playerCount) % state.playerCount;
   }
   return from;
 }
@@ -102,8 +133,42 @@ function removeCards(hand: Card[], cards: Card[]): Card[] {
   return sortCards(remaining);
 }
 
+function siegeTeamDone(state: HandState, team: 0 | 1): boolean {
+  return [0, 1, 2, 3]
+    .filter((s) => teamOf(s) === team)
+    .every((s) => state.finishOrder.includes(s));
+}
+
 function finishOrderComplete(state: HandState): boolean {
+  if (state.rules.siege && state.playerCount === 4) {
+    return siegeTeamDone(state, 0) || siegeTeamDone(state, 1);
+  }
   return state.finishOrder.length >= state.playerCount - 1;
+}
+
+function completeFinishOrder(state: HandState, finishOrder: number[]): number[] {
+  const next = [...finishOrder];
+  if (state.rules.siege && state.playerCount === 4) {
+    const winner = siegeTeamDone({ ...state, finishOrder: next }, 0)
+      ? 0
+      : siegeTeamDone({ ...state, finishOrder: next }, 1)
+        ? 1
+        : null;
+    if (winner == null) return next;
+    const leftover = [0, 1, 2, 3]
+      .filter((s) => !next.includes(s))
+      .sort(
+        (a, b) =>
+          (state.hands[a]?.length ?? 0) - (state.hands[b]?.length ?? 0),
+      );
+    return [...next, ...leftover];
+  }
+  if (next.length >= state.playerCount - 1) {
+    for (let s = 0; s < state.playerCount; s++) {
+      if (!next.includes(s)) next.push(s);
+    }
+  }
+  return next;
 }
 
 export function mustIncludeLeadCard(state: HandState, seat: number): boolean {
@@ -117,23 +182,42 @@ export function validatePlay(
   cards: Card[],
 ): { ok: true; combo: Combo } | { ok: false; error: string } {
   if (finishOrderComplete(state)) {
-    return { ok: false, error: "Game already finished" };
+    return { ok: false, error: "err.finished" };
   }
   if (seat !== state.currentSeat) {
-    return { ok: false, error: "Not your turn" };
+    return { ok: false, error: "err.notYourTurn" };
   }
   if (state.finishOrder.includes(seat)) {
-    return { ok: false, error: "Already finished" };
+    return { ok: false, error: "err.alreadyFinished" };
   }
 
   const hand = state.hands[seat];
   if (!cardsInHand(hand, cards)) {
-    return { ok: false, error: "Cards not in hand" };
+    return { ok: false, error: "err.cardsNotInHand" };
+  }
+
+  const jokers = cards.filter(isJoker);
+  if (jokers.some((card) => !card.as)) {
+    return { ok: false, error: "err.jokerNeedFace" };
+  }
+  if (jokers.some((card) => card.as?.rank === "2")) {
+    return { ok: false, error: "err.jokerNotTwo" };
   }
 
   const combo = detectCombo(cards);
   if (!combo) {
-    return { ok: false, error: "Invalid combination" };
+    return { ok: false, error: "err.invalidCombo" };
+  }
+
+  if (wouldFinishOnTwo(hand, cards, state.rules)) {
+    return { ok: false, error: "err.cannotFinishOnTwo" };
+  }
+
+  if (combo.type === "skip" || combo.type === "reverse") {
+    if (!state.rules.powerup) {
+      return { ok: false, error: "err.invalidCombo" };
+    }
+    return { ok: true, combo };
   }
 
   if (!state.pile) {
@@ -144,7 +228,7 @@ export function validatePlay(
     ) {
       return {
         ok: false,
-        error: "First play must include the lowest card in play",
+        error: "err.mustLead",
       };
     }
     return { ok: true, combo };
@@ -153,7 +237,7 @@ export function validatePlay(
   if (!beats(combo, state.pile)) {
     return {
       ok: false,
-      error: "Must play a higher combination of the same type",
+      error: "err.mustBeat",
     };
   }
 
@@ -172,32 +256,42 @@ export function applyPlay(
     i === seat ? removeCards(h, cards) : [...h],
   );
 
-  const finishOrder = [...state.finishOrder];
+  let finishOrder = [...state.finishOrder];
   if (hands[seat].length === 0 && !finishOrder.includes(seat)) {
     finishOrder.push(seat);
+  }
+
+  const power = result.combo.type === "skip" || result.combo.type === "reverse";
+  let direction = state.direction;
+  if (result.combo.type === "reverse") {
+    direction = state.direction === 1 ? -1 : 1;
   }
 
   const next: HandState = {
     ...state,
     hands,
-    pile: result.combo,
-    lastPlaySeat: seat,
-    passesInRow: 0,
+    pile: power ? state.pile : result.combo,
+    lastPlaySeat: power ? state.lastPlaySeat : seat,
+    passesInRow: power ? state.passesInRow : 0,
     finishOrder,
-    leadCard: null,
+    leadCard: power ? state.leadCard : null,
     currentSeat: seat,
+    direction,
   };
 
-  if (finishOrder.length >= state.playerCount - 1) {
-    for (let s = 0; s < state.playerCount; s++) {
-      if (!finishOrder.includes(s)) finishOrder.push(s);
-    }
-    next.finishOrder = finishOrder;
+  finishOrder = completeFinishOrder(next, finishOrder);
+  next.finishOrder = finishOrder;
+
+  if (finishOrderComplete(next)) {
     next.currentSeat = seat;
     return next;
   }
 
-  next.currentSeat = nextActiveSeat(next, seat);
+  let after = nextActiveSeat(next, seat);
+  if (result.combo.type === "skip") {
+    after = nextActiveSeat({ ...next, currentSeat: after }, after);
+  }
+  next.currentSeat = after;
   return next;
 }
 
@@ -206,13 +300,16 @@ export function validatePass(
   seat: number,
 ): { ok: true } | { ok: false; error: string } {
   if (finishOrderComplete(state)) {
-    return { ok: false, error: "Game already finished" };
+    return { ok: false, error: "err.finished" };
   }
   if (seat !== state.currentSeat) {
-    return { ok: false, error: "Not your turn" };
+    return { ok: false, error: "err.notYourTurn" };
   }
   if (!state.pile) {
-    return { ok: false, error: "Cannot pass on a free lead" };
+    if (isStuckOnLastTwo(state.hands[seat] ?? [], state.rules)) {
+      return { ok: true };
+    }
+    return { ok: false, error: "err.cannotPassLead" };
   }
   return { ok: true };
 }
@@ -222,6 +319,16 @@ export function applyPass(state: HandState, seat: number): HandState {
   if (!result.ok) throw new Error(result.error);
 
   const active = activeSeats(state);
+  if (!state.pile) {
+    return {
+      ...state,
+      pile: null,
+      lastPlaySeat: null,
+      passesInRow: 0,
+      currentSeat: nextActiveSeat(state, seat),
+    };
+  }
+
   const othersActive = active.filter((s) => s !== state.lastPlaySeat);
   const passesInRow = state.passesInRow + 1;
 

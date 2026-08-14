@@ -4,6 +4,7 @@ import {
   applyPlay,
   createHandState,
   handStateFromHands,
+  validatePass,
   validatePlay,
 } from "./engine";
 import type { Card } from "./types";
@@ -88,6 +89,45 @@ describe("play and pass", () => {
 
   it("rejects a pass on a free lead", () => {
     const state = handStateFromHands([[c("3", "S")], [c("4", "H")]]);
-    expect(() => applyPass(state, 0)).toThrow(/free lead/);
+    expect(() => applyPass(state, 0)).toThrow(/cannotPassLead/);
+  });
+
+  it("rejects going out with a 2 when the house rule is on", () => {
+    const rules = { threePlayerSeventeen: true, noFinishOnTwo: true };
+    let state = handStateFromHands(
+      [[c("2", "H")], [c("3", "S"), c("5", "D")]],
+      rules,
+    );
+    state = applyPlay(state, 1, [c("3", "S")]);
+    const stuck = validatePlay(state, 0, [c("2", "H")]);
+    expect(stuck.ok).toBe(false);
+    if (!stuck.ok) expect(stuck.error).toBe("err.cannotFinishOnTwo");
+    expect(validatePass(state, 0).ok).toBe(true);
+  });
+
+  it("lets a stuck last 2 pass on a free lead", () => {
+    const state = handStateFromHands(
+      [[c("2", "H")], [c("3", "S"), c("5", "D")]],
+      { threePlayerSeventeen: true, noFinishOnTwo: true },
+    );
+    state.currentSeat = 0;
+    state.leadCard = null;
+    expect(validatePass(state, 0).ok).toBe(true);
+    const next = applyPass(state, 0);
+    expect(next.currentSeat).toBe(1);
+    expect(next.pile).toBeNull();
+  });
+});
+
+describe("deal size", () => {
+  it("deals 17 to each of 3 players by default, or 13 when the rule is off", () => {
+    const seventeen = createHandState(3, () => 0.5);
+    expect(seventeen.hands.every((h) => h.length === 17)).toBe(true);
+
+    const thirteen = createHandState(3, () => 0.5, {
+      threePlayerSeventeen: false,
+      noFinishOnTwo: false,
+    });
+    expect(thirteen.hands.every((h) => h.length === 13)).toBe(true);
   });
 });
