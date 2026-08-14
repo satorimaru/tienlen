@@ -62,22 +62,21 @@ export default function HomePage() {
   };
 
   return (
-    <main className="mx-auto flex w-full max-w-lg flex-1 flex-col justify-center px-3 py-8 sm:px-4 sm:py-12">
-      <div className="rounded-3xl bg-white p-6 text-slate-900 shadow-2xl ring-1 ring-white/10 sm:p-8">
-        <div className="mb-8 text-center">
-          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-600 text-2xl shadow-lg shadow-emerald-200">
-            🂡
-          </div>
-          <h1 className="text-3xl font-semibold tracking-tight">
-            Tiến Lên (13)
-          </h1>
-          <p className="mt-2 text-sm leading-relaxed text-slate-500">
-            Vietnamese climbing card game · 2–4 players. Southern rules with
-            bombs vs 2s. Create a room and share the code.
-          </p>
-        </div>
+    <main className="mx-auto flex w-full max-w-md flex-1 flex-col justify-end px-4 pt-[max(2rem,env(safe-area-inset-top))] pb-[max(1.25rem,env(safe-area-inset-bottom))] sm:justify-center">
+      <header className="mb-8 text-center">
+        <p className="text-[11px] uppercase tracking-[0.28em] text-[var(--gold)]">
+          Southern rules
+        </p>
+        <h1 className="mt-2 font-[family-name:var(--font-display)] text-[2.75rem] leading-none tracking-tight">
+          Tiến Lên
+        </h1>
+        <p className="mt-3 text-sm leading-relaxed text-[var(--mute)]">
+          Climbing cards. 2–4 friends. Bombs beat 2s.
+        </p>
+      </header>
 
-        <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">
+      <section className="glass-panel rounded-[1.75rem] p-5">
+        <label className="mb-2 block text-[11px] uppercase tracking-[0.16em] text-[var(--gold-dim)]">
           Your name
         </label>
         <input
@@ -85,23 +84,23 @@ export default function HomePage() {
           onChange={(e) => setNameDraft(e.target.value)}
           maxLength={24}
           placeholder="Player"
-          className="mb-6 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none ring-emerald-500 focus:ring-2"
+          className="field mb-5"
         />
 
-        <label className="mb-2 block text-xs font-medium uppercase tracking-wide text-slate-500">
-          Max players
+        <label className="mb-2 block text-[11px] uppercase tracking-[0.16em] text-[var(--gold-dim)]">
+          Seats
         </label>
-        <div className="mb-6 flex gap-2">
+        <div className="mb-5 grid grid-cols-3 gap-2">
           {([2, 3, 4] as const).map((n) => (
             <button
               key={n}
               type="button"
               onClick={() => setMaxPlayers(n)}
               className={[
-                "flex-1 rounded-xl py-2 text-sm font-semibold transition",
+                "min-h-12 rounded-xl text-sm font-semibold",
                 maxPlayers === n
-                  ? "bg-emerald-600 text-white"
-                  : "bg-slate-100 text-slate-600 hover:bg-slate-200",
+                  ? "bg-[var(--gold)] text-[#1a1408]"
+                  : "bg-black/25 text-[var(--mute)]",
               ].join(" ")}
             >
               {n}
@@ -113,26 +112,23 @@ export default function HomePage() {
           type="button"
           disabled={creating}
           onClick={() => void createRoom()}
-          className="mb-6 min-h-12 w-full rounded-xl bg-emerald-600 text-sm font-semibold text-white shadow-lg shadow-emerald-200 touch-manipulation hover:bg-emerald-500 disabled:opacity-50"
+          className="btn-gold mb-5 w-full touch-manipulation"
         >
-          {creating ? "Creating…" : "Create room"}
+          {creating ? "Opening table…" : "Create table"}
         </button>
 
-        <div className="relative mb-6">
-          <div className="absolute inset-0 flex items-center">
-            <div className="w-full border-t border-slate-100" />
-          </div>
-          <div className="relative flex justify-center text-xs uppercase">
-            <span className="bg-white px-2 text-slate-400">or join</span>
-          </div>
+        <div className="mb-4 flex items-center gap-3 text-[11px] uppercase tracking-[0.16em] text-[var(--mute)]">
+          <span className="h-px flex-1 bg-[rgba(244,234,216,0.1)]" />
+          Join
+          <span className="h-px flex-1 bg-[rgba(244,234,216,0.1)]" />
         </div>
 
         <div className="flex gap-2">
           <input
             value={joinCode}
             onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
-            placeholder="Room code"
-            className="min-w-0 flex-1 rounded-xl border border-slate-200 px-4 py-3 font-mono text-sm outline-none ring-emerald-500 focus:ring-2"
+            placeholder="ROOM"
+            className="field min-w-0 flex-1 font-mono tracking-[0.2em]"
             onKeyDown={(e) => {
               if (e.key === "Enter") void joinRoom();
             }}
@@ -141,36 +137,18 @@ export default function HomePage() {
             type="button"
             disabled={joining}
             onClick={() => void joinRoom()}
-            className="min-h-12 shrink-0 rounded-xl bg-slate-900 px-5 text-sm font-semibold text-white touch-manipulation hover:bg-slate-800 disabled:opacity-50"
+            className="btn-ghost min-w-20 touch-manipulation px-4"
           >
-            {joining ? "…" : "Join"}
+            {joining ? "…" : "Sit"}
           </button>
         </div>
 
         {error && (
-          <p className="mt-4 rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700">
+          <p className="mt-4 rounded-xl bg-[rgba(196,30,58,0.12)] px-3 py-2 text-sm text-[#f0b4bd]">
             {error}
           </p>
         )}
-
-        <details className="mt-8 text-left text-xs text-slate-500">
-          <summary className="cursor-pointer font-medium text-slate-600">
-            Quick rules
-          </summary>
-          <ul className="mt-2 list-disc space-y-1 pl-4 leading-relaxed">
-            <li>Rank: 3 low → 2 high · Suit: ♠ &lt; ♣ &lt; ♦ &lt; ♥</li>
-            <li>
-              Combos: single, pair, triple, four-of-a-kind, sequence (≥3),
-              double sequence (≥3 pairs)
-            </li>
-            <li>Beat the pile with the same shape, higher rank — or pass</li>
-            <li>Four-of-a-kind or triple pairs beat a single 2</li>
-            <li>
-              First lead is the lowest card in play (3♠, else 3♣, else 3♦, …)
-            </li>
-          </ul>
-        </details>
-      </div>
+      </section>
     </main>
   );
 }

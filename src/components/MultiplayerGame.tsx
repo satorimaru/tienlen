@@ -7,6 +7,7 @@ import { useClientMounted } from "@/lib/client";
 import { fetchRoom, playBody, postRoom } from "@/lib/rooms/client";
 import type { RoomView } from "@/lib/rooms/types";
 import type { Card } from "@/lib/tienlen/types";
+import { ChatSheet } from "./ChatSheet";
 import { GameTable } from "./GameTable";
 import { Lobby } from "./Lobby";
 
@@ -28,6 +29,7 @@ export function MultiplayerGame({
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
+  const [chatOpen, setChatOpen] = useState(false);
   const mounted = useClientMounted();
   const inviteUrl = mounted
     ? `${window.location.origin}/game/${roomId}`
@@ -135,8 +137,8 @@ export function MultiplayerGame({
 
   if (loading) {
     return (
-      <div className="flex flex-1 items-center justify-center text-emerald-100">
-        Loading room…
+      <div className="flex flex-1 items-center justify-center text-[var(--mute)]">
+        Loading table…
       </div>
     );
   }
@@ -144,9 +146,9 @@ export function MultiplayerGame({
   if (!room) {
     return (
       <div className="flex flex-1 flex-col items-center justify-center gap-3 px-4 text-center">
-        <p className="text-lg text-red-200">{error ?? "Room not found"}</p>
-        <Link href="/" className="text-sm text-emerald-200 underline">
-          Back home
+        <p className="text-lg text-[#f0b4bd]">{error ?? "Room not found"}</p>
+        <Link href="/" className="text-sm text-[var(--gold)]">
+          Home
         </Link>
       </div>
     );
@@ -161,6 +163,7 @@ export function MultiplayerGame({
           inviteUrl={inviteUrl}
           busy={busy}
           error={error}
+          onOpenChat={() => setChatOpen(true)}
           onReady={(ready) => {
             void run(() =>
               postRoom(roomId, { action: "ready", playerId, ready }),
@@ -177,17 +180,27 @@ export function MultiplayerGame({
             });
           }}
         />
+        <ChatSheet open={chatOpen} onClose={() => setChatOpen(false)} />
       </div>
     );
   }
 
   return (
-    <div className="mx-auto flex h-dvh w-full max-w-3xl flex-col overflow-hidden px-2 pt-[max(0.5rem,env(safe-area-inset-top))] sm:px-3">
-      <header className="mb-1 flex shrink-0 items-center justify-between py-1 text-emerald-100/80">
-        <Link href="/" className="min-h-8 text-xs hover:underline">
-          ← Home
+    <div className="mx-auto flex h-dvh w-full max-w-lg flex-col overflow-hidden px-2 pt-[max(0.4rem,env(safe-area-inset-top))]">
+      <header className="mb-1 flex shrink-0 items-center justify-between px-1 py-1">
+        <Link href="/" className="min-h-9 text-xs text-[var(--mute)]">
+          Home
         </Link>
-        <span className="font-mono text-xs">Room {room.id}</span>
+        <span className="font-mono text-xs tracking-[0.16em] text-[var(--gold)]">
+          {room.id}
+        </span>
+        <button
+          type="button"
+          onClick={() => setChatOpen(true)}
+          className="min-h-9 text-xs text-[var(--gold)]"
+        >
+          Chat
+        </button>
       </header>
       <GameTable
         room={room}
@@ -214,6 +227,7 @@ export function MultiplayerGame({
           )
         }
       />
+      <ChatSheet open={chatOpen} onClose={() => setChatOpen(false)} />
     </div>
   );
 }

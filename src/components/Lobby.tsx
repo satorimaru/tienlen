@@ -10,6 +10,7 @@ interface LobbyProps {
   onReady: (ready: boolean) => void;
   onStart: () => void;
   onLeave: () => void;
+  onOpenChat: () => void;
   busy?: boolean;
   error?: string | null;
 }
@@ -21,6 +22,7 @@ export function Lobby({
   onReady,
   onStart,
   onLeave,
+  onOpenChat,
   busy,
   error,
 }: LobbyProps) {
@@ -44,96 +46,98 @@ export function Lobby({
   };
 
   return (
-    <div className="mx-auto w-full max-w-lg rounded-3xl bg-white p-5 shadow-xl ring-1 ring-slate-200/80 sm:p-8">
-      <div className="mb-6 text-center">
-        <p className="text-xs font-medium uppercase tracking-wider text-emerald-700">
-          Waiting room
-        </p>
-        <h1 className="mt-1 font-mono text-3xl font-semibold tracking-wide text-slate-900">
-          {room.id}
-        </h1>
-        <p className="mt-2 text-sm text-slate-500">
-          {room.players.length}/{room.maxPlayers} players · share the code or
-          link
-        </p>
+    <div className="glass-panel mx-auto w-full max-w-md rounded-[1.75rem] p-5">
+      <div className="mb-5 flex items-start justify-between gap-3">
+        <div>
+          <p className="text-[11px] uppercase tracking-[0.18em] text-[var(--gold-dim)]">
+            Waiting
+          </p>
+          <h1 className="mt-1 font-mono text-[2rem] tracking-[0.18em] text-[var(--ivory)]">
+            {room.id}
+          </h1>
+          <p className="mt-1 text-sm text-[var(--mute)]">
+            {room.players.length}/{room.maxPlayers} seated
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={onOpenChat}
+          className="min-h-11 rounded-full border border-[rgba(212,176,106,0.22)] px-3 text-xs tracking-wide text-[var(--gold)]"
+        >
+          Chat
+        </button>
       </div>
 
-      <div className="mb-6 flex gap-2">
+      <div className="mb-5 flex gap-2">
         <input
           readOnly
           value={inviteUrl}
-          className="min-w-0 flex-1 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600"
+          className="field min-w-0 flex-1 truncate text-xs"
         />
         <button
           type="button"
-          onClick={copy}
-          className="min-h-11 shrink-0 rounded-xl bg-slate-900 px-4 text-sm font-medium text-white touch-manipulation hover:bg-slate-800"
+          onClick={() => void copy()}
+          className="btn-ghost min-w-20 px-4 text-sm"
         >
           {copied ? "Copied" : "Copy"}
         </button>
       </div>
 
-      <ul className="mb-6 space-y-2">
+      <ul className="mb-5 space-y-2">
         {seats.map((p, i) => (
           <li
             key={i}
-            className="flex items-center justify-between rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3"
+            className="flex items-center justify-between rounded-2xl bg-black/25 px-3 py-3"
           >
             <div className="flex items-center gap-3">
-              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-100 text-sm font-semibold text-emerald-800">
+              <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[rgba(212,176,106,0.12)] text-sm text-[var(--gold)]">
                 {i + 1}
               </span>
-              <p className="font-medium text-slate-900">
-                {p ? p.name : "Empty seat"}
-                {p?.id === room.hostId && (
-                  <span className="ml-2 text-xs font-normal text-amber-600">
-                    host
-                  </span>
-                )}
-                {p?.id === playerId && (
-                  <span className="ml-2 text-xs font-normal text-slate-400">
-                    you
-                  </span>
-                )}
-              </p>
+              <div>
+                <p className="text-sm font-medium text-[var(--ivory)]">
+                  {p ? p.name : "Open seat"}
+                </p>
+                <p className="text-[11px] text-[var(--mute)]">
+                  {p?.id === room.hostId
+                    ? "Host"
+                    : p?.id === playerId
+                      ? "You"
+                      : p
+                        ? "Seated"
+                        : "Waiting"}
+                </p>
+              </div>
             </div>
             {p ? (
               <span
                 className={
                   p.ready
-                    ? "text-sm font-medium text-emerald-600"
-                    : "text-sm text-slate-400"
+                    ? "text-xs font-semibold text-[var(--gold)]"
+                    : "text-xs text-[var(--mute)]"
                 }
               >
                 {p.ready ? "Ready" : "Not ready"}
               </span>
-            ) : (
-              <span className="text-sm text-slate-300">—</span>
-            )}
+            ) : null}
           </li>
         ))}
       </ul>
 
       {error && (
-        <p className="mb-4 rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700">
+        <p className="mb-4 rounded-xl bg-[rgba(196,30,58,0.12)] px-3 py-2 text-sm text-[#f0b4bd]">
           {error}
         </p>
       )}
 
-      <div className="flex flex-col gap-2 sm:flex-row">
+      <div className="flex flex-col gap-2">
         {me && (
           <button
             type="button"
             disabled={busy}
             onClick={() => onReady(!me.ready)}
-            className={[
-              "min-h-12 flex-1 rounded-xl px-4 text-sm font-semibold touch-manipulation transition",
-              me.ready
-                ? "bg-slate-100 text-slate-700 hover:bg-slate-200"
-                : "bg-emerald-600 text-white hover:bg-emerald-500",
-            ].join(" ")}
+            className={me.ready ? "btn-ghost w-full" : "btn-gold w-full"}
           >
-            {me.ready ? "Unready" : "Ready up"}
+            {me.ready ? "Hold on" : "Ready"}
           </button>
         )}
         {isHost && (
@@ -141,16 +145,16 @@ export function Lobby({
             type="button"
             disabled={busy || !allReady}
             onClick={onStart}
-            className="min-h-12 flex-1 rounded-xl bg-slate-900 px-4 text-sm font-semibold text-white touch-manipulation transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-40"
+            className="btn-ghost w-full"
           >
-            Start game
+            Deal
           </button>
         )}
       </div>
 
       {isHost && !allReady && (
-        <p className="mt-3 text-center text-xs text-slate-400">
-          Need at least 2 players, all ready, to start
+        <p className="mt-3 text-center text-xs text-[var(--mute)]">
+          Everyone must ready before the deal
         </p>
       )}
 
@@ -158,9 +162,9 @@ export function Lobby({
         type="button"
         disabled={busy}
         onClick={onLeave}
-        className="mt-4 w-full text-center text-xs text-slate-400 underline hover:text-slate-600"
+        className="mt-4 w-full text-center text-xs text-[var(--mute)]"
       >
-        Leave room
+        Leave table
       </button>
     </div>
   );

@@ -22,27 +22,34 @@ export function ResultModal({
     .filter(Boolean);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="w-full max-w-sm rounded-3xl bg-white p-6 shadow-2xl">
-        <h2 className="text-center text-2xl font-semibold text-slate-900">
-          Hand complete
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/55 p-3 sm:items-center">
+      <div className="glass-panel w-full max-w-sm rounded-[1.75rem] p-6 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
+        <p className="text-center text-[11px] uppercase tracking-[0.2em] text-[var(--gold-dim)]">
+          Hand over
+        </p>
+        <h2 className="mt-1 text-center font-[family-name:var(--font-display)] text-3xl">
+          Places
         </h2>
-        <ol className="mt-6 space-y-2">
+        <ol className="mt-5 space-y-2">
           {ranked.map((p, i) => (
             <li
               key={p!.id}
               className={[
                 "flex items-center justify-between rounded-2xl px-4 py-3",
                 p!.id === playerId
-                  ? "bg-emerald-50 ring-1 ring-emerald-200"
-                  : "bg-slate-50",
+                  ? "bg-[rgba(212,176,106,0.12)]"
+                  : "bg-black/25",
               ].join(" ")}
             >
-              <span className="font-medium text-slate-800">
+              <span className="text-sm text-[var(--ivory)]">
                 {PLACE[i] ?? `${i + 1}th`} · {p!.name}
-                {p!.id === playerId && " (you)"}
+                {p!.id === playerId ? " · you" : ""}
               </span>
-              {i === 0 && <span className="text-lg">🏆</span>}
+              {i === 0 && (
+                <span className="text-xs tracking-wide text-[var(--gold)]">
+                  First
+                </span>
+              )}
             </li>
           ))}
         </ol>
@@ -50,12 +57,12 @@ export function ResultModal({
           type="button"
           disabled={busy}
           onClick={onRematch}
-          className="mt-6 min-h-12 w-full rounded-xl bg-emerald-600 text-base font-semibold text-white touch-manipulation hover:bg-emerald-500 disabled:opacity-50"
+          className="btn-gold mt-6 w-full"
         >
-          Rematch lobby
+          Back to lobby
         </button>
-        <p className="mt-3 text-center text-xs text-slate-400">
-          Everyone stays in the room. Ready up again when you are back.
+        <p className="mt-3 text-center text-xs text-[var(--mute)]">
+          Same table. Ready again when you are.
         </p>
       </div>
     </div>

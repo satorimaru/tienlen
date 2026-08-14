@@ -31,11 +31,11 @@ function eventText(room: RoomView, event: RoomEvent | null): string | null {
       : "";
   switch (event.kind) {
     case "play":
-      return `${name} played a ${comboLabel(event.comboType)}`;
+      return `${name} · ${comboLabel(event.comboType)}`;
     case "pass":
       return `${name} passed`;
     case "start":
-      return "Hand started";
+      return "Cards are out";
     default:
       return null;
   }
@@ -98,46 +98,46 @@ export function GameTable({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <div className="flex gap-2 overflow-x-auto px-1 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      <div className="flex gap-2 overflow-x-auto px-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {opponents.map((p) => (
           <div
             key={p.id}
             className={[
-              "min-w-[5.75rem] flex-1 rounded-2xl border px-2 py-2 text-center",
+              "min-w-[5.5rem] flex-1 rounded-2xl px-2 py-2 text-center",
               p.id === room.currentPlayerId
-                ? "border-amber-400 bg-emerald-950/60 ring-2 ring-amber-300/40"
-                : "border-emerald-800/60 bg-emerald-950/40",
+                ? "bg-[rgba(212,176,106,0.14)] ring-1 ring-[var(--gold)]"
+                : "bg-black/20",
             ].join(" ")}
           >
-            <p className="truncate text-xs font-medium text-emerald-50 sm:text-sm">
+            <p className="truncate text-xs font-medium text-[var(--ivory)]">
               {p.name}
               {p.finishOrder != null && (
-                <span className="ml-1 text-amber-300">#{p.finishOrder}</span>
+                <span className="ml-1 text-[var(--gold)]">#{p.finishOrder}</span>
               )}
             </p>
-            <p className="mt-1 text-[11px] text-emerald-200/80">
-              {p.cardCount} card{p.cardCount === 1 ? "" : "s"}
+            <p className="mt-1 text-[11px] text-[var(--mute)]">
+              {p.cardCount}
             </p>
           </div>
         ))}
       </div>
 
-      <div className="my-2 flex min-h-0 flex-1 flex-col items-center justify-center rounded-3xl border border-emerald-800/50 bg-emerald-900/30 px-3 py-4">
+      <div className="table-felt my-2 flex min-h-0 flex-1 flex-col items-center justify-center rounded-[1.6rem] px-3 py-4">
         {banner && (
-          <p className="mb-1 text-[11px] uppercase tracking-wide text-amber-200/80">
+          <p className="mb-1 text-[11px] tracking-wide text-[var(--gold)]">
             {banner}
           </p>
         )}
-        <p className="mb-3 text-center text-sm font-medium text-emerald-100/90">
+        <p className="mb-3 max-w-[16rem] text-center text-sm text-[var(--ivory)]">
           {room.status === "finished"
-            ? "Game over"
+            ? "Hand over"
             : isMyTurn
               ? room.pile.length
-                ? "Your turn — beat the pile or pass"
+                ? "Beat it or pass"
                 : mustLeadCard
-                  ? `Your turn — lead with ${formatCard(mustLeadCard)}`
-                  : "Your turn — lead any combo"
-              : `Waiting for ${currentName}`}
+                  ? `Lead ${formatCard(mustLeadCard)}`
+                  : "Your lead"
+              : currentName}
         </p>
         {room.pile.length > 0 ? (
           <div className="flex flex-wrap justify-center gap-1">
@@ -146,24 +146,25 @@ export function GameTable({
             ))}
           </div>
         ) : (
-          <p className="text-sm text-emerald-200/50">Empty pile · free lead</p>
+          <p className="text-xs text-[var(--mute)]">Open table</p>
         )}
         {room.pileType && (
-          <p className="mt-2 text-[11px] uppercase tracking-wide text-emerald-300/70">
+          <p className="mt-2 text-[11px] uppercase tracking-[0.16em] text-[var(--gold-dim)]">
             {comboLabel(room.pileType)}
           </p>
         )}
       </div>
 
-      <div className="rounded-t-3xl bg-white/95 px-3 pt-3 shadow-2xl ring-1 ring-slate-200 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+      <div className="rounded-t-[1.6rem] border-t border-[rgba(212,176,106,0.14)] bg-[rgba(8,14,12,0.94)] px-3 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
         <div className="mb-1 flex items-center justify-between text-sm">
-          <span className="font-medium text-slate-800">
-            {me?.name ?? "You"} · {room.hand.length}
+          <span className="text-[var(--ivory)]">
+            {me?.name ?? "You"}
+            <span className="ml-2 text-[var(--mute)]">{room.hand.length}</span>
           </span>
           {selected.length > 0 && (
             <button
               type="button"
-              className="min-h-8 px-2 text-xs text-slate-500 underline"
+              className="min-h-8 px-2 text-xs text-[var(--gold)]"
               onClick={() => setSelected([])}
             >
               Clear
@@ -179,7 +180,7 @@ export function GameTable({
         />
 
         {error && (
-          <p className="mb-2 rounded-lg bg-red-50 px-3 py-2 text-center text-sm text-red-700">
+          <p className="mb-2 rounded-lg bg-[rgba(196,30,58,0.12)] px-3 py-2 text-center text-sm text-[#f0b4bd]">
             {error}
           </p>
         )}
@@ -191,7 +192,7 @@ export function GameTable({
             onClick={() => {
               void onPlay(selectedCards).then(() => setSelected([]));
             }}
-            className="min-h-12 flex-1 rounded-2xl bg-emerald-600 text-base font-semibold text-white touch-manipulation hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-40"
+            className="btn-gold flex-1 touch-manipulation"
           >
             Play
             {combo ? ` · ${comboLabel(combo.type)}` : ""}
@@ -202,7 +203,7 @@ export function GameTable({
             onClick={() => {
               void onPass().then(() => setSelected([]));
             }}
-            className="min-h-12 flex-1 rounded-2xl bg-slate-200 text-base font-semibold text-slate-800 touch-manipulation hover:bg-slate-300 disabled:cursor-not-allowed disabled:opacity-40"
+            className="btn-ghost flex-1 touch-manipulation"
           >
             Pass
           </button>

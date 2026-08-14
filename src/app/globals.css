@@ -1,14 +1,21 @@
 @import "tailwindcss";
 
 :root {
-  --background: #022c22;
-  --foreground: #ecfdf5;
+  --felt: #0a1210;
+  --felt-deep: #07100d;
+  --ivory: #f4ead8;
+  --ink: #1a1612;
+  --gold: #d4b06a;
+  --gold-dim: #8a7344;
+  --crimson: #c41e3a;
+  --mute: #9aa89d;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
+  --color-background: var(--felt);
+  --color-foreground: var(--ivory);
   --font-sans: var(--font-geist-sans);
+  --font-display: var(--font-display);
   --font-mono: var(--font-geist-mono);
 }
 
@@ -17,8 +24,8 @@ html {
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
+  background: var(--felt);
+  color: var(--ivory);
   font-family: var(--font-geist-sans), system-ui, sans-serif;
   overscroll-behavior: none;
 }
@@ -29,4 +36,102 @@ button {
 
 button:disabled {
   cursor: not-allowed;
+}
+
+.felt-bg {
+  background-color: var(--felt);
+  background-image:
+    radial-gradient(1200px 600px at 50% -10%, rgba(212, 176, 106, 0.08), transparent 55%),
+    radial-gradient(800px 500px at 50% 110%, rgba(8, 40, 28, 0.9), transparent 60%),
+    repeating-linear-gradient(
+      0deg,
+      rgba(255, 255, 255, 0.012) 0 1px,
+      transparent 1px 3px
+    );
+}
+
+.glass-panel {
+  background: linear-gradient(
+    180deg,
+    rgba(22, 34, 28, 0.88) 0%,
+    rgba(12, 20, 17, 0.94) 100%
+  );
+  border: 1px solid rgba(212, 176, 106, 0.16);
+  box-shadow:
+    0 24px 60px rgba(0, 0, 0, 0.45),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.table-felt {
+  background:
+    radial-gradient(ellipse at 50% 40%, rgba(34, 72, 52, 0.55), transparent 62%),
+    linear-gradient(180deg, #163328 0%, #0d1c16 100%);
+  box-shadow:
+    inset 0 0 0 1px rgba(212, 176, 106, 0.14),
+    inset 0 0 48px rgba(0, 0, 0, 0.35);
+}
+
+.field {
+  width: 100%;
+  border-radius: 14px;
+  border: 1px solid rgba(244, 234, 216, 0.1);
+  background: rgba(0, 0, 0, 0.28);
+  color: var(--ivory);
+  padding: 0.85rem 1rem;
+  font-size: 1rem;
+  outline: none;
+}
+
+.field::placeholder {
+  color: rgba(244, 234, 216, 0.35);
+}
+
+.field:focus {
+  border-color: rgba(212, 176, 106, 0.55);
+  box-shadow: 0 0 0 3px rgba(212, 176, 106, 0.12);
+}
+
+.btn-gold {
+  min-height: 3rem;
+  border-radius: 14px;
+  background: linear-gradient(180deg, #e3c37a 0%, #c9a15b 100%);
+  color: #1a1408;
+  font-weight: 650;
+  letter-spacing: 0.01em;
+  box-shadow: 0 10px 24px rgba(201, 161, 91, 0.18);
+}
+
+.btn-gold:disabled {
+  opacity: 0.4;
+}
+
+.btn-ghost {
+  min-height: 3rem;
+  border-radius: 14px;
+  background: rgba(244, 234, 216, 0.06);
+  color: var(--ivory);
+  border: 1px solid rgba(244, 234, 216, 0.1);
+  font-weight: 600;
+}
+
+.btn-ghost:disabled {
+  opacity: 0.35;
+}
+
+.card-face {
+  background:
+    linear-gradient(180deg, #fffaf0 0%, #f3ead6 100%);
+  box-shadow:
+    0 8px 16px rgba(0, 0, 0, 0.28),
+    inset 0 0 0 1px rgba(90, 62, 30, 0.12);
+}
+
+.card-back {
+  background:
+    repeating-linear-gradient(
+      45deg,
+      #6b1d2a 0 6px,
+      #4a121c 6px 12px
+    );
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
 }

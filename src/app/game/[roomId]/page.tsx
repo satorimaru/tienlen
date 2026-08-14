@@ -24,7 +24,7 @@ export default function GamePage() {
 
   if (!roomId) {
     return (
-      <div className="flex flex-1 items-center justify-center text-red-200">
+      <div className="flex flex-1 items-center justify-center text-[#f0b4bd]">
         Invalid room
       </div>
     );
@@ -32,7 +32,7 @@ export default function GamePage() {
 
   if (!playerId) {
     return (
-      <div className="flex flex-1 items-center justify-center text-emerald-100">
+      <div className="flex flex-1 items-center justify-center text-[var(--mute)]">
         Loading…
       </div>
     );
@@ -41,18 +41,19 @@ export default function GamePage() {
   if (!nameReady) {
     return (
       <main className="mx-auto flex w-full max-w-sm flex-1 flex-col justify-center px-4 py-12">
-        <div className="rounded-3xl bg-white p-6 text-slate-900 shadow-xl">
-          <h1 className="text-lg font-semibold">Join game</h1>
-          <p className="mt-1 text-sm text-slate-500">
-            Enter a display name for room{" "}
-            <span className="font-mono">{roomId}</span>
+        <div className="glass-panel rounded-[1.75rem] p-6">
+          <p className="text-[11px] uppercase tracking-[0.18em] text-[var(--gold-dim)]">
+            Join table
           </p>
+          <h1 className="mt-1 font-[family-name:var(--font-display)] text-2xl">
+            {roomId}
+          </h1>
           <input
             value={nameDraft}
             onChange={(e) => setNameDraft(e.target.value)}
             maxLength={24}
             placeholder="Your name"
-            className="mt-4 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none ring-emerald-500 focus:ring-2"
+            className="field mt-5"
             onKeyDown={(e) => {
               if (e.key === "Enter" && nameDraft.trim()) {
                 setPlayerName(nameDraft);
@@ -67,9 +68,9 @@ export default function GamePage() {
               setPlayerName(nameDraft);
               setConfirmed(true);
             }}
-            className="mt-4 w-full rounded-xl bg-emerald-600 py-3 text-sm font-semibold text-white hover:bg-emerald-500 disabled:opacity-40"
+            className="btn-gold mt-4 w-full"
           >
-            Continue
+            Sit down
           </button>
         </div>
       </main>

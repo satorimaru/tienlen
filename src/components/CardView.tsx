@@ -9,13 +9,6 @@ const SUIT_SYMBOL: Record<Card["suit"], string> = {
   H: "♥",
 };
 
-const SUIT_COLOR: Record<Card["suit"], string> = {
-  S: "text-slate-900",
-  C: "text-slate-900",
-  D: "text-red-600",
-  H: "text-red-600",
-};
-
 interface CardViewProps {
   card: Card;
   selected?: boolean;
@@ -26,9 +19,9 @@ interface CardViewProps {
 }
 
 const sizeClass = {
-  sm: "h-12 w-9 text-[10px]",
-  md: "h-16 w-12 text-xs sm:h-20 sm:w-14 sm:text-sm",
-  hand: "h-[4.6rem] w-[3.25rem] text-xs",
+  sm: "h-11 w-8 text-[10px]",
+  md: "h-[4.4rem] w-12 text-xs",
+  hand: "h-[5.1rem] w-[3.45rem] text-[13px]",
 };
 
 export function CardView({
@@ -42,13 +35,14 @@ export function CardView({
   if (faceDown) {
     return (
       <div
-        className={`${sizeClass[size]} rounded-lg border-2 border-indigo-800 bg-gradient-to-br from-indigo-600 to-indigo-900 shadow-md`}
+        className={`${sizeClass[size]} card-back rounded-[0.55rem] border border-[#3a0d16]`}
         aria-hidden
       />
     );
   }
 
-  const color = SUIT_COLOR[card.suit];
+  const red = card.suit === "D" || card.suit === "H";
+  const ink = red ? "text-[#c41e3a]" : "text-[#1a1612]";
   const symbol = SUIT_SYMBOL[card.suit];
   const interactive = Boolean(onClick) && !disabled;
 
@@ -59,20 +53,18 @@ export function CardView({
       onClick={onClick}
       className={[
         sizeClass[size],
-        "relative flex flex-col items-center justify-between rounded-lg border bg-white px-1 py-1 shadow-md",
+        "card-face relative flex flex-col items-center justify-between rounded-[0.55rem] px-[0.28rem] py-[0.22rem]",
         "select-none font-semibold touch-manipulation",
-        color,
-        selected
-          ? "-translate-y-3 border-amber-400 shadow-lg ring-2 ring-amber-300"
-          : "border-slate-200",
+        ink,
+        selected ? "-translate-y-3 ring-2 ring-[var(--gold)]" : "",
         interactive ? "active:brightness-95" : "cursor-default",
-        disabled ? "opacity-50" : "",
+        disabled ? "opacity-45" : "",
       ].join(" ")}
       aria-pressed={selected}
       aria-label={formatCard(card)}
     >
       <span className="self-start leading-none">{card.rank}</span>
-      <span className="text-base leading-none sm:text-lg">{symbol}</span>
+      <span className="text-[1.15em] leading-none">{symbol}</span>
       <span className="self-end rotate-180 leading-none">{card.rank}</span>
     </button>
   );
