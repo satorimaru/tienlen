@@ -16,6 +16,13 @@ const SUIT_COLOR: Record<Card["suit"], string> = {
   H: "text-red-600",
 };
 
+const SUIT_NAME: Record<Card["suit"], string> = {
+  S: "spades",
+  C: "clubs",
+  D: "diamonds",
+  H: "hearts",
+};
+
 interface CardViewProps {
   card: Card;
   selected?: boolean;
@@ -62,21 +69,17 @@ export function CardView({
         "select-none font-semibold",
         color,
         selected
-          ? "-translate-y-3 border-amber-400 ring-2 ring-amber-300 shadow-lg"
+          ? "-translate-y-3 border-amber-400 shadow-lg ring-2 ring-amber-300"
           : "border-slate-200 hover:-translate-y-1",
         onClick && !disabled ? "cursor-pointer" : "cursor-default",
         disabled ? "opacity-50" : "",
       ].join(" ")}
       aria-pressed={selected}
-      aria-label={`${card.rank} of ${card.suit}`}
+      aria-label={`${card.rank} of ${SUIT_NAME[card.suit]}`}
     >
       <span className="self-start leading-none">{card.rank}</span>
       <span className="text-lg leading-none sm:text-xl">{symbol}</span>
       <span className="self-end rotate-180 leading-none">{card.rank}</span>
     </button>
   );
-}
-
-export function CardBack({ size = "sm" }: { size?: "sm" | "md" | "lg" }) {
-  return <CardView card={{ rank: "3", suit: "S" }} faceDown size={size} />;
 }

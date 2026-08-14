@@ -1,9 +1,9 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import type { RoomView } from "@/lib/rooms/types";
-import { detectCombo, beats } from "@/lib/tienlen/combos";
-import { cardId, type Card } from "@/lib/tienlen/types";
+import type { RoomEvent, RoomView } from "@/lib/rooms/types";
+import { beats, comboLabel, detectCombo } from "@/lib/tienlen/combos";
+import { cardId, isThreeSpades, type Card } from "@/lib/tienlen/types";
 import { CardView } from "./CardView";
 import { ResultModal } from "./ResultModal";
 
@@ -15,6 +15,24 @@ interface GameTableProps {
   onRematch: () => Promise<void>;
   busy?: boolean;
   error?: string | null;
+}
+
+function eventText(room: RoomView, event: RoomEvent | null): string | null {
+  if (!event) return null;
+  const name =
+    "playerId" in event
+      ? (room.players.find((p) => p.id === event.playerId)?.name ?? "Someone")
+      : "";
+  switch (event.kind) {
+    case "play":
+      return `${name} played a ${comboLabel(event.comboType)}`;
+    case "pass":
+      return `${name} passed`;
+    case "start":
+      return "Hand started";
+    default:
+      return null;
+  }
 }
 
 export function GameTable({
@@ -46,14 +64,20 @@ export function GameTable({
   const canPlay = useMemo(() => {
     if (!isMyTurn || !combo) return false;
     if (room.requireThreeSpades && !room.pile.length) {
-      if (!selectedCards.some((c) => c.rank === "3" && c.suit === "S")) {
-        return false;
-      }
+      if (!selectedCards.some(isThreeSpades)) return false;
     }
     return beats(combo, pileCombo);
-  }, [isMyTurn, combo, room.requireThreeSpades, room.pile.length, selectedCards, pileCombo]);
+  }, [
+    isMyTurn,
+    combo,
+    room.requireThreeSpades,
+    room.pile.length,
+    selectedCards,
+    pileCombo,
+  ]);
 
   const canPass = isMyTurn && room.pile.length > 0;
+  const banner = eventText(room, room.lastEvent);
 
   const toggle = (c: Card) => {
     if (!isMyTurn) return;
@@ -68,7 +92,6 @@ export function GameTable({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      {/* Opponents */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
         {opponents.map((p) => (
           <div
@@ -102,8 +125,12 @@ export function GameTable({
         ))}
       </div>
 
-      {/* Pile */}
       <div className="my-4 flex flex-1 flex-col items-center justify-center rounded-3xl border border-emerald-800/50 bg-emerald-900/30 px-4 py-6">
+        {banner && (
+          <p className="mb-2 text-xs uppercase tracking-wide text-amber-200/80">
+            {banner}
+          </p>
+        )}
         <p className="mb-3 text-sm font-medium text-emerald-100/90">
           {room.status === "finished"
             ? "Game over"
@@ -126,12 +153,11 @@ export function GameTable({
         )}
         {room.pileType && (
           <p className="mt-2 text-xs uppercase tracking-wide text-emerald-300/70">
-            {room.pileType.replace("_", " ")}
+            {comboLabel(room.pileType)}
           </p>
         )}
       </div>
 
-      {/* Hand */}
       <div className="rounded-t-3xl bg-white/95 p-4 shadow-2xl ring-1 ring-slate-200">
         <div className="mb-2 flex items-center justify-between text-sm">
           <span className="font-medium text-slate-800">
@@ -171,21 +197,19 @@ export function GameTable({
           <button
             type="button"
             disabled={!canPlay || busy}
-            onClick={async () => {
-              await onPlay(selectedCards);
-              setSelected([]);
+            onClick={() => {
+              void onPlay(selectedCards).then(() => setSelected([]));
             }}
             className="flex-1 rounded-xl bg-emerald-600 py-3 text-sm font-semibold text-white hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-40"
           >
             Play
-            {combo ? ` (${combo.type.replace("_", " ")})` : ""}
+            {combo ? ` (${comboLabel(combo.type)})` : ""}
           </button>
           <button
             type="button"
             disabled={!canPass || busy}
-            onClick={async () => {
-              await onPass();
-              setSelected([]);
+            onClick={() => {
+              void onPass().then(() => setSelected([]));
             }}
             className="flex-1 rounded-xl bg-slate-200 py-3 text-sm font-semibold text-slate-800 hover:bg-slate-300 disabled:cursor-not-allowed disabled:opacity-40"
           >

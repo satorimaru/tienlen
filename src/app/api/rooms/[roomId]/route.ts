@@ -1,34 +1,45 @@
 import { NextResponse } from "next/server";
-import { getRoom } from "@/lib/rooms/store";
+import { statusForError } from "@/lib/rooms/errors";
 import {
+  getRoomForPlayer,
   joinRoom,
+  leaveRoom,
+  parseCards,
   passTurn,
   playCards,
   rematchRoom,
   setReady,
   startGame,
 } from "@/lib/rooms/service";
-import { toRoomView } from "@/lib/rooms/view";
-import type { Card } from "@/lib/tienlen/types";
+import { toPublicView, toRoomView } from "@/lib/rooms/view";
+
+export const dynamic = "force-dynamic";
 
 type Params = { params: Promise<{ roomId: string }> };
+
+const NO_STORE = { "Cache-Control": "no-store" };
+
+function viewFor(room: NonNullable<Awaited<ReturnType<typeof leaveRoom>>>, playerId: string) {
+  return room.players.some((p) => p.id === playerId)
+    ? toRoomView(room, playerId)
+    : toPublicView(room);
+}
 
 export async function GET(request: Request, { params }: Params) {
   const { roomId } = await params;
   const playerId =
-    new URL(request.url).searchParams.get("playerId") ?? "";
+    new URL(request.url).searchParams.get("playerId")?.trim() ?? "";
 
-  const room = await getRoom(roomId);
-  if (!room) {
-    return NextResponse.json({ error: "Room not found" }, { status: 404 });
+  try {
+    const room = await getRoomForPlayer(roomId, playerId || undefined);
+    if (!playerId) {
+      return NextResponse.json({ room: toPublicView(room) }, { headers: NO_STORE });
+    }
+    return NextResponse.json({ room: viewFor(room, playerId) }, { headers: NO_STORE });
+  } catch (e) {
+    const { message, status } = statusForError(e);
+    return NextResponse.json({ error: message }, { status });
   }
-  if (!playerId) {
-    // Public lobby snapshot without hands
-    return NextResponse.json({
-      room: toRoomView(room, room.hostId),
-    });
-  }
-  return NextResponse.json({ room: toRoomView(room, playerId) });
 }
 
 export async function POST(request: Request, { params }: Params) {
@@ -36,7 +47,7 @@ export async function POST(request: Request, { params }: Params) {
   try {
     const body = await request.json();
     const action = String(body.action ?? "");
-    const playerId = String(body.playerId ?? "");
+    const playerId = String(body.playerId ?? "").trim();
 
     if (!playerId) {
       return NextResponse.json({ error: "playerId required" }, { status: 400 });
@@ -51,6 +62,16 @@ export async function POST(request: Request, { params }: Params) {
         );
         return NextResponse.json({ room: toRoomView(room, playerId) });
       }
+      case "leave": {
+        const room = await leaveRoom(roomId, playerId);
+        if (!room) {
+          return NextResponse.json({ room: null, left: true });
+        }
+        return NextResponse.json({
+          room: toPublicView(room),
+          left: true,
+        });
+      }
       case "ready": {
         const room = await setReady(roomId, playerId, Boolean(body.ready));
         return NextResponse.json({ room: toRoomView(room, playerId) });
@@ -60,13 +81,7 @@ export async function POST(request: Request, { params }: Params) {
         return NextResponse.json({ room: toRoomView(room, playerId) });
       }
       case "play": {
-        const cards = (body.cards ?? []) as Card[];
-        if (!Array.isArray(cards) || cards.length === 0) {
-          return NextResponse.json(
-            { error: "cards required" },
-            { status: 400 },
-          );
-        }
+        const cards = parseCards(body.cards);
         const room = await playCards(
           roomId,
           playerId,
@@ -91,15 +106,7 @@ export async function POST(request: Request, { params }: Params) {
         return NextResponse.json({ error: "Unknown action" }, { status: 400 });
     }
   } catch (e) {
-    const message = e instanceof Error ? e.message : "Request failed";
-    const status =
-      message === "Room not found"
-        ? 404
-        : message === "Room is full" ||
-            message === "Game already started" ||
-            message === "Stale turn — refresh and try again"
-          ? 409
-          : 400;
+    const { message, status } = statusForError(e);
     return NextResponse.json({ error: message }, { status });
   }
 }

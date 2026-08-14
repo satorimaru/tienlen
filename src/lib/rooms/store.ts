@@ -1,8 +1,12 @@
 import { Redis } from "@upstash/redis";
+import { customAlphabet } from "nanoid";
+import { RoomError } from "./errors";
 import type { Room } from "./types";
 
-const ROOM_TTL_SECONDS = 60 * 60 * 24; // 24h
+const ROOM_TTL_SECONDS = 60 * 60 * 24;
 const KEY_PREFIX = "tl:room:";
+const LOCK_PREFIX = "tl:lock:";
+const lockToken = customAlphabet("0123456789abcdefghijklmnopqrstuvwxyz", 16);
 
 function hasRedis(): boolean {
   return Boolean(
@@ -14,9 +18,9 @@ function getRedis(): Redis {
   return Redis.fromEnv();
 }
 
-/** In-memory fallback for local dev without Upstash. */
 const memory = globalThis as typeof globalThis & {
   __tienlenRooms?: Map<string, Room>;
+  __tienlenLocks?: Map<string, Promise<unknown>>;
 };
 
 function memMap(): Map<string, Room> {
@@ -24,6 +28,17 @@ function memMap(): Map<string, Room> {
     memory.__tienlenRooms = new Map();
   }
   return memory.__tienlenRooms;
+}
+
+function memLocks(): Map<string, Promise<unknown>> {
+  if (!memory.__tienlenLocks) {
+    memory.__tienlenLocks = new Map();
+  }
+  return memory.__tienlenLocks;
+}
+
+export function usingRedis(): boolean {
+  return hasRedis();
 }
 
 export async function getRoom(id: string): Promise<Room | null> {
@@ -52,6 +67,71 @@ export async function deleteRoom(id: string): Promise<void> {
   memMap().delete(id);
 }
 
-export function usingRedis(): boolean {
-  return hasRedis();
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function withMemoryLock<T>(id: string, fn: () => Promise<T>): Promise<T> {
+  const locks = memLocks();
+  const previous = locks.get(id) ?? Promise.resolve();
+  let release!: () => void;
+  const current = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const chained = previous.then(() => current);
+  locks.set(id, chained);
+  await previous.catch(() => undefined);
+  try {
+    return await fn();
+  } finally {
+    release();
+    if (locks.get(id) === chained) locks.delete(id);
+  }
+}
+
+async function withRedisLock<T>(id: string, fn: () => Promise<T>): Promise<T> {
+  const redis = getRedis();
+  const lockKey = LOCK_PREFIX + id;
+  const token = lockToken();
+
+  for (let attempt = 0; attempt < 24; attempt++) {
+    const acquired = await redis.set(lockKey, token, { nx: true, ex: 5 });
+    if (acquired) {
+      try {
+        return await fn();
+      } finally {
+        await redis.eval(
+          "if redis.call('get', KEYS[1]) == ARGV[1] then return redis.call('del', KEYS[1]) else return 0 end",
+          [lockKey],
+          [token],
+        );
+      }
+    }
+    await sleep(40 + attempt * 20);
+  }
+
+  throw new RoomError("Room is busy — try again", 409);
+}
+
+export async function withRoomLock<T>(
+  id: string,
+  fn: () => Promise<T>,
+): Promise<T> {
+  if (hasRedis()) return withRedisLock(id, fn);
+  return withMemoryLock(id, fn);
+}
+
+export async function updateRoom(
+  id: string,
+  updater: (room: Room) => Room | void,
+): Promise<Room> {
+  return withRoomLock(id, async () => {
+    const room = await getRoom(id);
+    if (!room) throw new RoomError("Room not found", 404);
+    const draft = structuredClone(room);
+    const next = updater(draft) ?? draft;
+    next.revision = room.revision + 1;
+    await saveRoom(next);
+    return next;
+  });
 }

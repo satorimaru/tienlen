@@ -1,6 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useClientMounted } from "@/lib/client";
+import { fetchRoom, playBody, postRoom } from "@/lib/rooms/client";
 import type { RoomView } from "@/lib/rooms/types";
 import type { Card } from "@/lib/tienlen/types";
 import { GameTable } from "./GameTable";
@@ -12,61 +16,54 @@ interface MultiplayerGameProps {
   playerName: string;
 }
 
-async function apiRoom(
-  roomId: string,
-  body: Record<string, unknown>,
-): Promise<RoomView> {
-  const res = await fetch(`/api/rooms/${roomId}`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.error || "Request failed");
-  return data.room as RoomView;
-}
+const POLL_MS = 800;
 
 export function MultiplayerGame({
   roomId,
   playerId,
   playerName,
 }: MultiplayerGameProps) {
+  const router = useRouter();
   const [room, setRoom] = useState<RoomView | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
-  const [inviteUrl, setInviteUrl] = useState("");
+  const mounted = useClientMounted();
+  const inviteUrl = mounted
+    ? `${window.location.origin}/game/${roomId}`
+    : `/game/${roomId}`;
+  const roomRef = useRef<RoomView | null>(null);
 
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      setInviteUrl(`${window.location.origin}/game/${roomId}`);
+  const applyRoom = useCallback((next: RoomView) => {
+    const prev = roomRef.current;
+    if (
+      prev &&
+      prev.revision === next.revision &&
+      prev.turnVersion === next.turnVersion &&
+      prev.status === next.status
+    ) {
+      return;
     }
-  }, [roomId]);
+    roomRef.current = next;
+    setRoom(next);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
 
     async function boot() {
       try {
-        const res = await fetch(
-          `/api/rooms/${roomId}?playerId=${encodeURIComponent(playerId)}`,
-        );
-        if (!res.ok) {
-          const data = await res.json().catch(() => ({}));
-          throw new Error(data.error || "Room not found");
-        }
-        let { room: r } = (await res.json()) as { room: RoomView };
-
-        if (!r.players.some((p) => p.id === playerId)) {
-          r = await apiRoom(roomId, {
+        let next = await fetchRoom(roomId, playerId);
+        if (!next.players.some((p) => p.id === playerId)) {
+          const joined = await postRoom(roomId, {
             action: "join",
             playerId,
             playerName,
           });
+          if (joined) next = joined;
         }
-
         if (!cancelled) {
-          setRoom(r);
+          applyRoom(next);
           setError(null);
         }
       } catch (e) {
@@ -78,58 +75,62 @@ export function MultiplayerGame({
       }
     }
 
-    boot();
+    void boot();
     return () => {
       cancelled = true;
     };
-  }, [roomId, playerId, playerName]);
+  }, [roomId, playerId, playerName, applyRoom]);
 
-  // Poll for updates
   useEffect(() => {
-    if (!room || room.status === "finished") return;
+    if (!room) return;
 
-    const id = window.setInterval(async () => {
+    let cancelled = false;
+    const tick = async () => {
       try {
-        const res = await fetch(
-          `/api/rooms/${roomId}?playerId=${encodeURIComponent(playerId)}`,
-        );
-        if (!res.ok) return;
-        const data = await res.json();
-        setRoom(data.room as RoomView);
+        const next = await fetchRoom(roomId, playerId);
+        if (!cancelled) applyRoom(next);
       } catch {
-        /* ignore */
+        /* keep last good snapshot */
       }
-    }, 900);
+    };
 
-    return () => window.clearInterval(id);
-  }, [room, roomId, playerId]);
+    const id = window.setInterval(() => {
+      void tick();
+    }, POLL_MS);
+
+    const onVisible = () => {
+      if (document.visibilityState === "visible") void tick();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(id);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [room, roomId, playerId, applyRoom]);
 
   const run = useCallback(
-    async (fn: () => Promise<RoomView>) => {
+    async (fn: () => Promise<RoomView | null>) => {
       setBusy(true);
       setError(null);
       try {
-        const r = await fn();
-        setRoom(r);
+        const next = await fn();
+        if (next) applyRoom(next);
+        return next;
       } catch (e) {
         setError(e instanceof Error ? e.message : "Action failed");
-        // Refetch on conflict
         try {
-          const res = await fetch(
-            `/api/rooms/${roomId}?playerId=${encodeURIComponent(playerId)}`,
-          );
-          if (res.ok) {
-            const data = await res.json();
-            setRoom(data.room as RoomView);
-          }
+          applyRoom(await fetchRoom(roomId, playerId));
         } catch {
           /* ignore */
         }
+        return null;
       } finally {
         setBusy(false);
       }
     },
-    [roomId, playerId],
+    [applyRoom, roomId, playerId],
   );
 
   if (loading) {
@@ -144,9 +145,9 @@ export function MultiplayerGame({
     return (
       <div className="flex flex-1 flex-col items-center justify-center gap-3 px-4 text-center">
         <p className="text-lg text-red-200">{error ?? "Room not found"}</p>
-        <a href="/" className="text-sm text-emerald-200 underline">
+        <Link href="/" className="text-sm text-emerald-200 underline">
           Back home
-        </a>
+        </Link>
       </div>
     );
   }
@@ -160,14 +161,21 @@ export function MultiplayerGame({
           inviteUrl={inviteUrl}
           busy={busy}
           error={error}
-          onReady={(ready) =>
-            run(() =>
-              apiRoom(roomId, { action: "ready", playerId, ready }),
-            )
-          }
-          onStart={() =>
-            run(() => apiRoom(roomId, { action: "start", playerId }))
-          }
+          onReady={(ready) => {
+            void run(() =>
+              postRoom(roomId, { action: "ready", playerId, ready }),
+            );
+          }}
+          onStart={() => {
+            void run(() => postRoom(roomId, { action: "start", playerId }));
+          }}
+          onLeave={() => {
+            void run(async () => {
+              await postRoom(roomId, { action: "leave", playerId });
+              router.push("/");
+              return null;
+            });
+          }}
         />
       </div>
     );
@@ -176,9 +184,9 @@ export function MultiplayerGame({
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col px-3 py-4">
       <header className="mb-2 flex items-center justify-between text-emerald-100/80">
-        <a href="/" className="text-xs hover:underline">
+        <Link href="/" className="text-xs hover:underline">
           ← Home
-        </a>
+        </Link>
         <span className="font-mono text-xs">Room {room.id}</span>
       </header>
       <GameTable
@@ -188,25 +196,22 @@ export function MultiplayerGame({
         error={error}
         onPlay={(cards: Card[]) =>
           run(() =>
-            apiRoom(roomId, {
-              action: "play",
-              playerId,
-              cards,
-              turnVersion: room.turnVersion,
-            }),
-          )
+            postRoom(roomId, playBody(playerId, cards, room.turnVersion)),
+          ).then(() => undefined)
         }
         onPass={() =>
           run(() =>
-            apiRoom(roomId, {
+            postRoom(roomId, {
               action: "pass",
               playerId,
               turnVersion: room.turnVersion,
             }),
-          )
+          ).then(() => undefined)
         }
         onRematch={() =>
-          run(() => apiRoom(roomId, { action: "rematch", playerId }))
+          run(() => postRoom(roomId, { action: "rematch", playerId })).then(
+            () => undefined,
+          )
         }
       />
     </div>

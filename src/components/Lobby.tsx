@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import type { RoomView } from "@/lib/rooms/types";
 
 interface LobbyProps {
@@ -8,6 +9,7 @@ interface LobbyProps {
   inviteUrl: string;
   onReady: (ready: boolean) => void;
   onStart: () => void;
+  onLeave: () => void;
   busy?: boolean;
   error?: string | null;
 }
@@ -18,9 +20,11 @@ export function Lobby({
   inviteUrl,
   onReady,
   onStart,
+  onLeave,
   busy,
   error,
 }: LobbyProps) {
+  const [copied, setCopied] = useState(false);
   const me = room.players.find((p) => p.id === playerId);
   const isHost = room.hostId === playerId;
   const allReady =
@@ -32,6 +36,8 @@ export function Lobby({
   const copy = async () => {
     try {
       await navigator.clipboard.writeText(inviteUrl);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1600);
     } catch {
       /* ignore */
     }
@@ -43,12 +49,12 @@ export function Lobby({
         <p className="text-xs font-medium uppercase tracking-wider text-emerald-700">
           Waiting room
         </p>
-        <h1 className="mt-1 text-2xl font-semibold text-slate-900">
-          Room {room.id}
+        <h1 className="mt-1 font-mono text-3xl font-semibold tracking-wide text-slate-900">
+          {room.id}
         </h1>
         <p className="mt-2 text-sm text-slate-500">
-          {room.players.length}/{room.maxPlayers} players · share the link to
-          invite friends
+          {room.players.length}/{room.maxPlayers} players · share the code or
+          link
         </p>
       </div>
 
@@ -63,7 +69,7 @@ export function Lobby({
           onClick={copy}
           className="shrink-0 rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800"
         >
-          Copy
+          {copied ? "Copied" : "Copy"}
         </button>
       </div>
 
@@ -77,21 +83,19 @@ export function Lobby({
               <span className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-100 text-sm font-semibold text-emerald-800">
                 {i + 1}
               </span>
-              <div>
-                <p className="font-medium text-slate-900">
-                  {p ? p.name : "Empty seat"}
-                  {p?.id === room.hostId && (
-                    <span className="ml-2 text-xs font-normal text-amber-600">
-                      host
-                    </span>
-                  )}
-                  {p?.id === playerId && (
-                    <span className="ml-2 text-xs font-normal text-slate-400">
-                      you
-                    </span>
-                  )}
-                </p>
-              </div>
+              <p className="font-medium text-slate-900">
+                {p ? p.name : "Empty seat"}
+                {p?.id === room.hostId && (
+                  <span className="ml-2 text-xs font-normal text-amber-600">
+                    host
+                  </span>
+                )}
+                {p?.id === playerId && (
+                  <span className="ml-2 text-xs font-normal text-slate-400">
+                    you
+                  </span>
+                )}
+              </p>
             </div>
             {p ? (
               <span
@@ -149,6 +153,15 @@ export function Lobby({
           Need at least 2 players, all ready, to start
         </p>
       )}
+
+      <button
+        type="button"
+        disabled={busy}
+        onClick={onLeave}
+        className="mt-4 w-full text-center text-xs text-slate-400 underline hover:text-slate-600"
+      >
+        Leave room
+      </button>
     </div>
   );
 }

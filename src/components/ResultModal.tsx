@@ -54,6 +54,9 @@ export function ResultModal({
         >
           Rematch lobby
         </button>
+        <p className="mt-3 text-center text-xs text-slate-400">
+          Everyone stays in the room. Ready up again when you are back.
+        </p>
       </div>
     </div>
   );
