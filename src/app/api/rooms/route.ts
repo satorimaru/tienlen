@@ -1,11 +1,12 @@
 import { NextResponse } from "next/server";
+import { statusForError } from "@/lib/rooms/errors";
 import { createRoom } from "@/lib/rooms/service";
 import { toRoomView } from "@/lib/rooms/view";
 
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const playerId = String(body.playerId ?? "");
+    const playerId = String(body.playerId ?? "").trim();
     const playerName = String(body.playerName ?? "Host");
     const maxPlayers = Number(body.maxPlayers ?? 4) as 2 | 3 | 4;
 
@@ -22,7 +23,7 @@ export async function POST(request: Request) {
     const room = await createRoom(playerId, playerName, maxPlayers);
     return NextResponse.json({ room: toRoomView(room, playerId) });
   } catch (e) {
-    const message = e instanceof Error ? e.message : "Failed to create room";
-    return NextResponse.json({ error: message }, { status: 500 });
+    const { message, status } = statusForError(e);
+    return NextResponse.json({ error: message }, { status });
   }
 }

@@ -73,7 +73,7 @@ export function cardId(card: Card): string {
 }
 
 export function parseCardId(id: string): Card | null {
-  const m = id.match(/^(10|[3-9JQKA2])([SCDH])$/);
+  const m = String(id).toUpperCase().match(/^(10|[3-9JQKA2])([SCDH])$/);
   if (!m) return null;
   return { rank: m[1] as Rank, suit: m[2] as Suit };
 }
@@ -84,4 +84,19 @@ export function sameCard(a: Card, b: Card): boolean {
 
 export function sortCards(cards: Card[]): Card[] {
   return [...cards].sort((a, b) => cardValue(a) - cardValue(b));
+}
+
+export function isThreeSpades(card: Card): boolean {
+  return card.rank === "3" && card.suit === "S";
+}
+
+const SUIT_SYMBOL: Record<Suit, string> = {
+  S: "♠",
+  C: "♣",
+  D: "♦",
+  H: "♥",
+};
+
+export function formatCard(card: Card): string {
+  return `${card.rank}${SUIT_SYMBOL[card.suit]}`;
 }

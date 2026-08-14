@@ -50,10 +50,13 @@ export function ResultModal({
           type="button"
           disabled={busy}
           onClick={onRematch}
-          className="mt-6 w-full rounded-xl bg-emerald-600 py-3 text-sm font-semibold text-white hover:bg-emerald-500 disabled:opacity-50"
+          className="mt-6 min-h-12 w-full rounded-xl bg-emerald-600 text-base font-semibold text-white touch-manipulation hover:bg-emerald-500 disabled:opacity-50"
         >
           Rematch lobby
         </button>
+        <p className="mt-3 text-center text-xs text-slate-400">
+          Everyone stays in the room. Ready up again when you are back.
+        </p>
       </div>
     </div>
   );

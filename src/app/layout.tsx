@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
@@ -18,6 +18,13 @@ export const metadata: Metadata = {
     "Play Tiến Lên (Thirteen), the classic Vietnamese card game, online with friends. 2–4 players, Southern rules.",
 };
 
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+  themeColor: "#022c22",
+};
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -28,7 +35,7 @@ export default function RootLayout({
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="flex min-h-full flex-col bg-gradient-to-b from-emerald-950 via-emerald-900 to-slate-950 font-sans text-slate-100">
+      <body className="flex min-h-dvh flex-col bg-gradient-to-b from-emerald-950 via-emerald-900 to-slate-950 font-sans text-slate-100">
         {children}
       </body>
     </html>

@@ -7,14 +7,24 @@ export interface RoomPlayer {
   name: string;
   seat: number;
   ready: boolean;
-  /** Cards left (public). Full hand only in Room.hands. */
   cardCount: number;
   /** Finish place 1..n when out; null if still playing. */
   finishOrder: number | null;
+  lastSeenAt: number;
 }
+
+export type RoomEvent =
+  | { kind: "join"; playerId: string }
+  | { kind: "leave"; playerId: string }
+  | { kind: "ready"; playerId: string; ready: boolean }
+  | { kind: "start" }
+  | { kind: "play"; playerId: string; comboType: ComboType; cards: Card[] }
+  | { kind: "pass"; playerId: string }
+  | { kind: "rematch" };
 
 export interface Room {
   id: string;
+  revision: number;
   status: RoomStatus;
   hostId: string;
   maxPlayers: 2 | 3 | 4;
@@ -27,16 +37,17 @@ export interface Room {
   lastPlayPlayerId: string | null;
   passesInRow: number;
   turnVersion: number;
-  requireThreeSpades: boolean;
-  /** Ordered player ids by finish place. */
+  /** Opening lead must include this card; null after the first play. */
+  leadCard: Card | null;
   winners: string[];
+  lastEvent: RoomEvent | null;
   startedAt: number | null;
   createdAt: number;
 }
 
-/** Client-safe view: only your hand is included. */
 export interface RoomView {
   id: string;
+  revision: number;
   status: RoomStatus;
   hostId: string;
   maxPlayers: 2 | 3 | 4;
@@ -48,9 +59,11 @@ export interface RoomView {
   lastPlayPlayerId: string | null;
   passesInRow: number;
   turnVersion: number;
-  requireThreeSpades: boolean;
+  leadCard: Card | null;
   winners: string[];
+  lastEvent: RoomEvent | null;
   startedAt: number | null;
   createdAt: number;
-  you: string;
+  you: string | null;
+  usingRedis: boolean;
 }

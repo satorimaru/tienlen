@@ -20,10 +20,13 @@ export function shuffle<T>(arr: T[], random: () => number = Math.random): T[] {
 }
 
 /**
- * Deal equal hands for 2–4 players.
+ * Deal equal hands for 2–4 players from a 52-card deck.
  * - 4 players: 13 each
  * - 3 players: 17 each (1 discarded)
- * - 2 players: 13 each (26 discarded for shorter games)
+ * - 2 players: 13 each (26 discarded)
+ *
+ * Discarded cards may include 3♠. The opening lead is whoever
+ * holds the lowest card still in play (3♠, else 3♣, else 3♦, …).
  */
 export function dealHands(
   playerCount: number,
@@ -34,7 +37,7 @@ export function dealHands(
   }
 
   const deck = shuffle(createDeck(), random);
-  const perHand = playerCount === 4 ? 13 : playerCount === 3 ? 17 : 13;
+  const perHand = playerCount === 3 ? 17 : 13;
 
   const hands: Card[][] = Array.from({ length: playerCount }, () => []);
   let i = 0;

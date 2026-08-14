@@ -1,7 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useClientMounted } from "@/lib/client";
+import { createRoomRequest, postRoom } from "@/lib/rooms/client";
 import {
   getOrCreatePlayerId,
   getPlayerName,
@@ -10,36 +12,26 @@ import {
 
 export default function HomePage() {
   const router = useRouter();
-  const [name, setName] = useState("");
+  const mounted = useClientMounted();
+  const [nameDraft, setNameDraft] = useState<string | null>(null);
+  const name = nameDraft ?? (mounted ? getPlayerName() : "");
   const [joinCode, setJoinCode] = useState("");
   const [maxPlayers, setMaxPlayers] = useState<2 | 3 | 4>(4);
   const [creating, setCreating] = useState(false);
   const [joining, setJoining] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    getOrCreatePlayerId();
-    setName(getPlayerName() || "");
-  }, []);
-
   const createRoom = async () => {
     setCreating(true);
     setError(null);
     setPlayerName(name);
     try {
-      const playerId = getOrCreatePlayerId();
-      const res = await fetch("/api/rooms", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          playerId,
-          playerName: name || "Host",
-          maxPlayers,
-        }),
+      const room = await createRoomRequest({
+        playerId: getOrCreatePlayerId(),
+        playerName: name || "Host",
+        maxPlayers,
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to create room");
-      router.push(`/game/${data.room.id}`);
+      router.push(`/game/${room.id}`);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to create room");
       setCreating(false);
@@ -47,7 +39,7 @@ export default function HomePage() {
   };
 
   const joinRoom = async () => {
-    const code = joinCode.trim();
+    const code = joinCode.trim().toUpperCase();
     if (!code) {
       setError("Enter a room code");
       return;
@@ -56,19 +48,13 @@ export default function HomePage() {
     setError(null);
     setPlayerName(name);
     try {
-      const playerId = getOrCreatePlayerId();
-      const res = await fetch(`/api/rooms/${encodeURIComponent(code)}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "join",
-          playerId,
-          playerName: name || "Guest",
-        }),
+      const room = await postRoom(code, {
+        action: "join",
+        playerId: getOrCreatePlayerId(),
+        playerName: name || "Guest",
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to join");
-      router.push(`/game/${data.room.id}`);
+      if (!room) throw new Error("Failed to join");
+      router.push(`/game/${room.id}`);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to join");
       setJoining(false);
@@ -76,8 +62,8 @@ export default function HomePage() {
   };
 
   return (
-    <main className="mx-auto flex w-full max-w-lg flex-1 flex-col justify-center px-4 py-12">
-      <div className="rounded-3xl bg-white p-8 text-slate-900 shadow-2xl ring-1 ring-white/10">
+    <main className="mx-auto flex w-full max-w-lg flex-1 flex-col justify-center px-3 py-8 sm:px-4 sm:py-12">
+      <div className="rounded-3xl bg-white p-6 text-slate-900 shadow-2xl ring-1 ring-white/10 sm:p-8">
         <div className="mb-8 text-center">
           <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-600 text-2xl shadow-lg shadow-emerald-200">
             🂡
@@ -86,8 +72,8 @@ export default function HomePage() {
             Tiến Lên (13)
           </h1>
           <p className="mt-2 text-sm leading-relaxed text-slate-500">
-            Vietnamese climbing card game · 2–4 players online. Southern rules
-            with bombs vs 2s. Create a room and share the link.
+            Vietnamese climbing card game · 2–4 players. Southern rules with
+            bombs vs 2s. Create a room and share the code.
           </p>
         </div>
 
@@ -96,7 +82,7 @@ export default function HomePage() {
         </label>
         <input
           value={name}
-          onChange={(e) => setName(e.target.value)}
+          onChange={(e) => setNameDraft(e.target.value)}
           maxLength={24}
           placeholder="Player"
           className="mb-6 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none ring-emerald-500 focus:ring-2"
@@ -126,8 +112,8 @@ export default function HomePage() {
         <button
           type="button"
           disabled={creating}
-          onClick={createRoom}
-          className="mb-6 w-full rounded-xl bg-emerald-600 py-3 text-sm font-semibold text-white shadow-lg shadow-emerald-200 hover:bg-emerald-500 disabled:opacity-50"
+          onClick={() => void createRoom()}
+          className="mb-6 min-h-12 w-full rounded-xl bg-emerald-600 text-sm font-semibold text-white shadow-lg shadow-emerald-200 touch-manipulation hover:bg-emerald-500 disabled:opacity-50"
         >
           {creating ? "Creating…" : "Create room"}
         </button>
@@ -144,15 +130,18 @@ export default function HomePage() {
         <div className="flex gap-2">
           <input
             value={joinCode}
-            onChange={(e) => setJoinCode(e.target.value)}
+            onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
             placeholder="Room code"
             className="min-w-0 flex-1 rounded-xl border border-slate-200 px-4 py-3 font-mono text-sm outline-none ring-emerald-500 focus:ring-2"
+            onKeyDown={(e) => {
+              if (e.key === "Enter") void joinRoom();
+            }}
           />
           <button
             type="button"
             disabled={joining}
-            onClick={joinRoom}
-            className="shrink-0 rounded-xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-50"
+            onClick={() => void joinRoom()}
+            className="min-h-12 shrink-0 rounded-xl bg-slate-900 px-5 text-sm font-semibold text-white touch-manipulation hover:bg-slate-800 disabled:opacity-50"
           >
             {joining ? "…" : "Join"}
           </button>
@@ -175,8 +164,10 @@ export default function HomePage() {
               double sequence (≥3 pairs)
             </li>
             <li>Beat the pile with the same shape, higher rank — or pass</li>
-            <li>Four-of-a-kind / triple pairs beat a single 2</li>
-            <li>First lead must include 3♠ · first to empty hand wins</li>
+            <li>Four-of-a-kind or triple pairs beat a single 2</li>
+            <li>
+              First lead is the lowest card in play (3♠, else 3♣, else 3♦, …)
+            </li>
           </ul>
         </details>
       </div>
