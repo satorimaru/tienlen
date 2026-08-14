@@ -89,3 +89,14 @@ export function sortCards(cards: Card[]): Card[] {
 export function isThreeSpades(card: Card): boolean {
   return card.rank === "3" && card.suit === "S";
 }
+
+const SUIT_SYMBOL: Record<Suit, string> = {
+  S: "♠",
+  C: "♣",
+  D: "♦",
+  H: "♥",
+};
+
+export function formatCard(card: Card): string {
+  return `${card.rank}${SUIT_SYMBOL[card.suit]}`;
+}

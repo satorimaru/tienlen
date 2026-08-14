@@ -154,7 +154,7 @@ export function MultiplayerGame({
 
   if (room.status === "waiting") {
     return (
-      <div className="flex flex-1 items-center px-4 py-8">
+      <div className="flex min-h-dvh flex-1 items-center px-3 py-6 sm:px-4">
         <Lobby
           room={room}
           playerId={playerId}
@@ -182,9 +182,9 @@ export function MultiplayerGame({
   }
 
   return (
-    <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col px-3 py-4">
-      <header className="mb-2 flex items-center justify-between text-emerald-100/80">
-        <Link href="/" className="text-xs hover:underline">
+    <div className="mx-auto flex h-dvh w-full max-w-3xl flex-col overflow-hidden px-2 pt-[max(0.5rem,env(safe-area-inset-top))] sm:px-3">
+      <header className="mb-1 flex shrink-0 items-center justify-between py-1 text-emerald-100/80">
+        <Link href="/" className="min-h-8 text-xs hover:underline">
           ← Home
         </Link>
         <span className="font-mono text-xs">Room {room.id}</span>

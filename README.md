@@ -51,7 +51,7 @@ UPSTASH_REDIS_REST_TOKEN=xxxx
 - Beat the pile with the **same shape** and a **higher** top card, or **pass**
 - When everyone else passes, the pile clears and the last player leads freely
 - **Bombs:** four-of-a-kind or 3+ consecutive pairs beat a **single 2**; 4+ pairs beat a pair of 2s; 5+ pairs beat a triple of 2s
-- First lead of the hand must include **3♠** when it was dealt. In 2- and 3-player deals some cards are discarded — if 3♠ is out of play, the lowest remaining card leads with no 3♠ requirement
+- First lead is whoever holds the **lowest card still in play**, and that play must include it. Order is 3♠, then 3♣, 3♦, 3♥, 4♠, and so on. In 2- and 3-player deals some cards are discarded, so 3♠ may not be out.
 - First player to empty their hand places 1st; play continues for remaining ranks
 
 Instant-win specials (four 2s, dragon, etc.) are **not** enabled in v1.

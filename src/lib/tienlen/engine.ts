@@ -4,7 +4,6 @@ import {
   type Card,
   type Combo,
   cardValue,
-  isThreeSpades,
   sameCard,
   sortCards,
 } from "./types";
@@ -16,9 +15,25 @@ export interface HandState {
   lastPlaySeat: number | null;
   passesInRow: number;
   finishOrder: number[];
-  /** First free lead of the hand must include 3♠ when it was dealt. */
-  requireThreeSpades: boolean;
+  /** First lead of the hand must include this card. Cleared after that play. */
+  leadCard: Card | null;
   playerCount: number;
+}
+
+export function lowestCardInPlay(
+  hands: Card[][],
+): { seat: number; card: Card } | null {
+  let bestSeat = -1;
+  let best: Card | null = null;
+  for (let s = 0; s < hands.length; s++) {
+    for (const card of hands[s]) {
+      if (!best || cardValue(card) < cardValue(best)) {
+        best = card;
+        bestSeat = s;
+      }
+    }
+  }
+  return best ? { seat: bestSeat, card: best } : null;
 }
 
 export function createHandState(
@@ -36,48 +51,18 @@ export function handStateFromHands(hands: Card[][]): HandState {
     throw new Error("playerCount must be 2–4");
   }
 
-  let threeSpadeSeat = -1;
-  for (let s = 0; s < playerCount; s++) {
-    if (hands[s].some(isThreeSpades)) {
-      threeSpadeSeat = s;
-      break;
-    }
-  }
-
-  let currentSeat = 0;
-  let requireThreeSpades = false;
-  if (threeSpadeSeat >= 0) {
-    currentSeat = threeSpadeSeat;
-    requireThreeSpades = true;
-  } else {
-    currentSeat = seatWithLowestCard(hands);
-  }
+  const opening = lowestCardInPlay(hands);
 
   return {
     hands: hands.map((h) => sortCards(h)),
     pile: null,
-    currentSeat,
+    currentSeat: opening?.seat ?? 0,
     lastPlaySeat: null,
     passesInRow: 0,
     finishOrder: [],
-    requireThreeSpades,
+    leadCard: opening?.card ?? null,
     playerCount,
   };
-}
-
-function seatWithLowestCard(hands: Card[][]): number {
-  let bestSeat = 0;
-  let best = Number.POSITIVE_INFINITY;
-  for (let s = 0; s < hands.length; s++) {
-    for (const card of hands[s]) {
-      const value = cardValue(card);
-      if (value < best) {
-        best = value;
-        bestSeat = s;
-      }
-    }
-  }
-  return bestSeat;
 }
 
 function activeSeats(state: HandState): number[] {
@@ -121,6 +106,11 @@ function finishOrderComplete(state: HandState): boolean {
   return state.finishOrder.length >= state.playerCount - 1;
 }
 
+export function mustIncludeLeadCard(state: HandState, seat: number): boolean {
+  if (state.pile || !state.leadCard) return false;
+  return (state.hands[seat] ?? []).some((c) => sameCard(c, state.leadCard!));
+}
+
 export function validatePlay(
   state: HandState,
   seat: number,
@@ -147,10 +137,14 @@ export function validatePlay(
   }
 
   if (!state.pile) {
-    if (state.requireThreeSpades && !cards.some(isThreeSpades)) {
+    if (
+      mustIncludeLeadCard(state, seat) &&
+      state.leadCard &&
+      !cards.some((c) => sameCard(c, state.leadCard!))
+    ) {
       return {
         ok: false,
-        error: "First play must include the 3 of spades",
+        error: "First play must include the lowest card in play",
       };
     }
     return { ok: true, combo };
@@ -190,7 +184,7 @@ export function applyPlay(
     lastPlaySeat: seat,
     passesInRow: 0,
     finishOrder,
-    requireThreeSpades: false,
+    leadCard: null,
     currentSeat: seat,
   };
 

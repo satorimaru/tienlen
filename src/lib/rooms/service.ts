@@ -5,6 +5,7 @@ import {
   applyPlay,
   createHandState,
   isGameFinished,
+  lowestCardInPlay,
   type HandState,
   validatePass,
   validatePlay,
@@ -77,7 +78,7 @@ function handStateFromRoom(room: Room): HandState {
     lastPlaySeat: last?.seat ?? null,
     passesInRow: room.passesInRow,
     finishOrder,
-    requireThreeSpades: room.requireThreeSpades,
+    leadCard: room.leadCard,
     playerCount: room.players.length,
   };
 }
@@ -93,7 +94,7 @@ function applyHandStateToRoom(room: Room, state: HandState): void {
   room.pile = state.pile?.cards ?? [];
   room.pileType = state.pile?.type ?? null;
   room.passesInRow = state.passesInRow;
-  room.requireThreeSpades = state.requireThreeSpades;
+  room.leadCard = state.leadCard;
   room.turnVersion += 1;
 
   const cur = room.players.find((p) => p.seat === state.currentSeat);
@@ -166,7 +167,7 @@ export async function createRoom(
     lastPlayPlayerId: null,
     passesInRow: 0,
     turnVersion: 0,
-    requireThreeSpades: true,
+    leadCard: null,
     winners: [],
     lastEvent: { kind: "join", playerId: hostId },
     startedAt: null,
@@ -262,7 +263,7 @@ export async function leaveRoom(
       room.lastPlayPlayerId = null;
       room.passesInRow = 0;
       room.turnVersion = 0;
-      room.requireThreeSpades = true;
+      room.leadCard = null;
       room.winners = [];
       room.startedAt = null;
       for (const p of room.players) {
@@ -311,6 +312,7 @@ export async function startGame(
       throw new RoomError("All players must be ready", 400);
     }
 
+    reseat(room);
     const state = createHandState(room.players.length);
     room.status = "playing";
     room.startedAt = now();
@@ -322,20 +324,36 @@ export async function startGame(
     for (const p of room.players) {
       p.finishOrder = null;
       p.ready = false;
-      room.hands[p.id] = state.hands[p.seat];
-      p.cardCount = state.hands[p.seat].length;
+      room.hands[p.id] = state.hands[p.seat] ?? [];
+      p.cardCount = room.hands[p.id].length;
     }
 
     room.pile = [];
     room.pileType = null;
     room.passesInRow = 0;
-    room.requireThreeSpades = state.requireThreeSpades;
     room.lastPlayPlayerId = null;
-
-    const leader = room.players.find((p) => p.seat === state.currentSeat);
-    room.currentPlayerId = leader?.id ?? room.players[0].id;
+    assignOpeningLead(room);
     touch(room, playerId);
   });
+}
+
+function assignOpeningLead(room: Room): void {
+  const bySeat: Card[][] = Array.from(
+    { length: room.players.length },
+    () => [],
+  );
+  for (const p of room.players) {
+    bySeat[p.seat] = room.hands[p.id] ?? [];
+  }
+  const opening = lowestCardInPlay(bySeat);
+  if (!opening) {
+    room.currentPlayerId = room.players[0]?.id ?? null;
+    room.leadCard = null;
+    return;
+  }
+  const player = room.players.find((p) => p.seat === opening.seat);
+  room.currentPlayerId = player?.id ?? null;
+  room.leadCard = opening.card;
 }
 
 function assertFreshTurn(room: Room, expectedVersion?: number): void {
@@ -414,7 +432,7 @@ export async function rematchRoom(
     room.lastPlayPlayerId = null;
     room.passesInRow = 0;
     room.turnVersion = 0;
-    room.requireThreeSpades = true;
+    room.leadCard = null;
     room.winners = [];
     room.startedAt = null;
     room.lastEvent = { kind: "rematch" };

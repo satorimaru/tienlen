@@ -8,6 +8,7 @@ import {
   setReady,
   startGame,
 } from "./service";
+import { sameCard } from "@/lib/tienlen/types";
 import { getRoom } from "./store";
 import { toPublicView, toRoomView } from "./view";
 
@@ -49,6 +50,12 @@ describe("rooms", () => {
     const started = await startGame(room.id, "host-3");
     expect(started.status).toBe("playing");
     expect(started.currentPlayerId).toBeTruthy();
+    expect(started.leadCard).toBeTruthy();
+    const leader = started.players.find((p) => p.id === started.currentPlayerId);
+    const leaderHand = started.hands[leader!.id];
+    expect(leaderHand.some((card) => sameCard(card, started.leadCard!))).toBe(
+      true,
+    );
   });
 
   it("transfers the host and deletes an empty room on leave", async () => {

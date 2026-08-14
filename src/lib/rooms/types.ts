@@ -37,7 +37,8 @@ export interface Room {
   lastPlayPlayerId: string | null;
   passesInRow: number;
   turnVersion: number;
-  requireThreeSpades: boolean;
+  /** Opening lead must include this card; null after the first play. */
+  leadCard: Card | null;
   winners: string[];
   lastEvent: RoomEvent | null;
   startedAt: number | null;
@@ -58,7 +59,7 @@ export interface RoomView {
   lastPlayPlayerId: string | null;
   passesInRow: number;
   turnVersion: number;
-  requireThreeSpades: boolean;
+  leadCard: Card | null;
   winners: string[];
   lastEvent: RoomEvent | null;
   startedAt: number | null;

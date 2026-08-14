@@ -22,7 +22,7 @@ function baseView(room: Room): Omit<RoomView, "hand" | "you"> {
     lastPlayPlayerId: room.lastPlayPlayerId,
     passesInRow: room.passesInRow,
     turnVersion: room.turnVersion,
-    requireThreeSpades: room.requireThreeSpades,
+    leadCard: room.leadCard,
     winners: room.winners,
     lastEvent: room.lastEvent,
     startedAt: room.startedAt,

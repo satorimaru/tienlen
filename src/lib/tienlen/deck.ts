@@ -25,8 +25,8 @@ export function shuffle<T>(arr: T[], random: () => number = Math.random): T[] {
  * - 3 players: 17 each (1 discarded)
  * - 2 players: 13 each (26 discarded)
  *
- * The discarded cards may include 3♠. The engine then lets the
- * lowest remaining card lead, with no 3♠ requirement.
+ * Discarded cards may include 3♠. The opening lead is whoever
+ * holds the lowest card still in play (3♠, else 3♣, else 3♦, …).
  */
 export function dealHands(
   playerCount: number,

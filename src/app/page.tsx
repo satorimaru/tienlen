@@ -62,8 +62,8 @@ export default function HomePage() {
   };
 
   return (
-    <main className="mx-auto flex w-full max-w-lg flex-1 flex-col justify-center px-4 py-12">
-      <div className="rounded-3xl bg-white p-8 text-slate-900 shadow-2xl ring-1 ring-white/10">
+    <main className="mx-auto flex w-full max-w-lg flex-1 flex-col justify-center px-3 py-8 sm:px-4 sm:py-12">
+      <div className="rounded-3xl bg-white p-6 text-slate-900 shadow-2xl ring-1 ring-white/10 sm:p-8">
         <div className="mb-8 text-center">
           <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-600 text-2xl shadow-lg shadow-emerald-200">
             🂡
@@ -113,7 +113,7 @@ export default function HomePage() {
           type="button"
           disabled={creating}
           onClick={() => void createRoom()}
-          className="mb-6 w-full rounded-xl bg-emerald-600 py-3 text-sm font-semibold text-white shadow-lg shadow-emerald-200 hover:bg-emerald-500 disabled:opacity-50"
+          className="mb-6 min-h-12 w-full rounded-xl bg-emerald-600 text-sm font-semibold text-white shadow-lg shadow-emerald-200 touch-manipulation hover:bg-emerald-500 disabled:opacity-50"
         >
           {creating ? "Creating…" : "Create room"}
         </button>
@@ -141,7 +141,7 @@ export default function HomePage() {
             type="button"
             disabled={joining}
             onClick={() => void joinRoom()}
-            className="shrink-0 rounded-xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-50"
+            className="min-h-12 shrink-0 rounded-xl bg-slate-900 px-5 text-sm font-semibold text-white touch-manipulation hover:bg-slate-800 disabled:opacity-50"
           >
             {joining ? "…" : "Join"}
           </button>
@@ -165,7 +165,9 @@ export default function HomePage() {
             </li>
             <li>Beat the pile with the same shape, higher rank — or pass</li>
             <li>Four-of-a-kind or triple pairs beat a single 2</li>
-            <li>First lead includes 3♠ when it was dealt</li>
+            <li>
+              First lead is the lowest card in play (3♠, else 3♣, else 3♦, …)
+            </li>
           </ul>
         </details>
       </div>
