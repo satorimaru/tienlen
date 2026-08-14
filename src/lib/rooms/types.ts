@@ -1,3 +1,4 @@
+import type { GameRules } from "@/lib/rules";
 import type { Card, ComboType } from "@/lib/tienlen/types";
 
 export type RoomStatus = "waiting" | "playing" | "finished";
@@ -53,6 +54,9 @@ export interface Room {
   lastEvent: RoomEvent | null;
   /** Newest last. Capped in sendMessage. */
   messages: ChatMessage[];
+  rules: GameRules;
+  direction: 1 | -1;
+  turnStartedAt: number | null;
   startedAt: number | null;
   createdAt: number;
 }
@@ -75,6 +79,9 @@ export interface RoomView {
   winners: string[];
   lastEvent: RoomEvent | null;
   messages: ChatMessage[];
+  rules: GameRules;
+  direction: 1 | -1;
+  turnStartedAt: number | null;
   startedAt: number | null;
   createdAt: number;
   you: string | null;

@@ -31,6 +31,7 @@ export async function createRoomRequest(input: {
   playerId: string;
   playerName: string;
   maxPlayers: 2 | 3 | 4;
+  rules?: unknown;
 }): Promise<RoomView> {
   const res = await fetch("/api/rooms", {
     method: "POST",

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { parseRules } from "@/lib/rules";
 import { statusForError } from "@/lib/rooms/errors";
 import { createRoom } from "@/lib/rooms/service";
 import { toRoomView } from "@/lib/rooms/view";
@@ -20,7 +21,12 @@ export async function POST(request: Request) {
       );
     }
 
-    const room = await createRoom(playerId, playerName, maxPlayers);
+    const room = await createRoom(
+      playerId,
+      playerName,
+      maxPlayers,
+      parseRules(body.rules),
+    );
     return NextResponse.json({ room: toRoomView(room, playerId) });
   } catch (e) {
     const { message, status } = statusForError(e);
