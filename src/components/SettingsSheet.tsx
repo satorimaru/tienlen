@@ -11,6 +11,8 @@ interface SettingsSheetProps {
   rules: GameRules;
   onChangeRules: (rules: GameRules) => void;
   rulesLocked?: boolean;
+  /** House rules and modes are Tiến Lên-only. */
+  houseRules?: boolean;
 }
 
 function RuleToggle({
@@ -64,6 +66,7 @@ export function SettingsSheet({
   rules,
   onChangeRules,
   rulesLocked,
+  houseRules = true,
 }: SettingsSheetProps) {
   const { t } = useApp();
   if (!open) return null;
@@ -103,46 +106,62 @@ export function SettingsSheet({
           <LangToggle />
         </div>
 
-        <p className="mb-2 text-[11px] uppercase tracking-[0.16em] text-[var(--gold-dim)]">
-          {t("settings.modes")}
-        </p>
-        <div className="mb-5">
-          <ModePicker
-            rules={rules}
-            onChange={onChangeRules}
-            disabled={rulesLocked}
-          />
-        </div>
+        {houseRules && (
+          <>
+            <p className="mb-2 text-[11px] uppercase tracking-[0.16em] text-[var(--gold-dim)]">
+              {t("settings.modes")}
+            </p>
+            <div className="mb-5">
+              <ModePicker
+                rules={rules}
+                onChange={onChangeRules}
+                disabled={rulesLocked}
+              />
+            </div>
 
-        <p className="mb-2 text-[11px] uppercase tracking-[0.16em] text-[var(--gold-dim)]">
-          {t("settings.rules")}
-        </p>
-        <div className="space-y-2">
-          <RuleToggle
-            on={rules.threePlayerSeventeen}
-            disabled={rulesLocked}
-            title={t("settings.seventeen")}
-            hint={t("settings.seventeenHint")}
-            onToggle={() =>
-              onChangeRules({
-                ...rules,
-                threePlayerSeventeen: !rules.threePlayerSeventeen,
-              })
-            }
-          />
-          <RuleToggle
-            on={rules.noFinishOnTwo}
-            disabled={rulesLocked}
-            title={t("settings.noTwo")}
-            hint={t("settings.noTwoHint")}
-            onToggle={() =>
-              onChangeRules({
-                ...rules,
-                noFinishOnTwo: !rules.noFinishOnTwo,
-              })
-            }
-          />
-        </div>
+            <p className="mb-2 text-[11px] uppercase tracking-[0.16em] text-[var(--gold-dim)]">
+              {t("settings.rules")}
+            </p>
+            <div className="space-y-2">
+              <RuleToggle
+                on={rules.threePlayerSeventeen}
+                disabled={rulesLocked}
+                title={t("settings.seventeen")}
+                hint={t("settings.seventeenHint")}
+                onToggle={() =>
+                  onChangeRules({
+                    ...rules,
+                    threePlayerSeventeen: !rules.threePlayerSeventeen,
+                  })
+                }
+              />
+              <RuleToggle
+                on={rules.noFinishOnTwo}
+                disabled={rulesLocked}
+                title={t("settings.noTwo")}
+                hint={t("settings.noTwoHint")}
+                onToggle={() =>
+                  onChangeRules({
+                    ...rules,
+                    noFinishOnTwo: !rules.noFinishOnTwo,
+                  })
+                }
+              />
+              <RuleToggle
+                on={rules.playAfterPass}
+                disabled={rulesLocked}
+                title={t("settings.playAfterPass")}
+                hint={t("settings.playAfterPassHint")}
+                onToggle={() =>
+                  onChangeRules({
+                    ...rules,
+                    playAfterPass: !rules.playAfterPass,
+                  })
+                }
+              />
+            </div>
+          </>
+        )}
       </section>
     </div>
   );
