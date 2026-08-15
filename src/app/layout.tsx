@@ -19,14 +19,14 @@ const display = Fraunces({
 });
 
 export const metadata: Metadata = {
-  title: "Tiến Lên (13)",
+  title: "Card games",
   description:
-    "Play Tiến Lên (Thirteen), the classic Vietnamese card game, online with friends. 2–4 players, Southern rules.",
-  applicationName: "Tiến Lên",
+    "Play Tiến Lên and more card games online. Same table, friends or bots.",
+  applicationName: "Card games",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "Tiến Lên",
+    title: "Card games",
   },
   formatDetection: {
     telephone: false,

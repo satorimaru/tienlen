@@ -2,15 +2,15 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Tiến Lên (13)",
-    short_name: "Tiến Lên",
+    name: "Card games",
+    short_name: "Games",
     description:
-      "Play Tiến Lên (Thirteen) online with friends. 2–4 players, Southern rules.",
+      "Play Tiến Lên and more card games online. Same table, friends or bots.",
     start_url: "/",
     display: "standalone",
     orientation: "portrait",
-    background_color: "#022c22",
-    theme_color: "#022c22",
+    background_color: "#0a1210",
+    theme_color: "#0a1210",
     categories: ["games", "entertainment"],
     icons: [
       {
